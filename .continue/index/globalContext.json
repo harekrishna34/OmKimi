@@ -1,0 +1,21 @@
+{
+  "lastSelectedProfileForWorkspace": {
+    "file:///root/false": "local",
+    "file:///root": "local"
+  },
+  "selectedModelsByProfileId": {
+    "local": {
+      "chat": null,
+      "edit": null,
+      "apply": null,
+      "embed": "Transformers.js (Built-In)",
+      "autocomplete": null,
+      "rerank": null,
+      "summarize": null,
+      "subagent": null
+    }
+  },
+  "sharedConfig": {
+    "allowAnonymousTelemetry": false
+  }
+}

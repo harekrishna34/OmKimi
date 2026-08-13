@@ -1,0 +1,6 @@
+.cache/
+.local/
+.npm/
+config.yaml
+*.log
+/tmp/
