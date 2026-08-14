@@ -37,6 +37,7 @@ COPY --from=build /app/apps/kimi-code/package.json ./apps/kimi-code/package.json
 COPY --from=build /app/apps/kimi-code/native ./apps/kimi-code/native
 COPY --from=build /app/packages ./packages
 COPY --from=build /app/apps/kimi-code/scripts ./apps/kimi-code/scripts
+COPY --from=build /app/scripts ./scripts
 
 COPY deploy/kimi-server/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
