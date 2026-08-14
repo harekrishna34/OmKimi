@@ -37,10 +37,7 @@
     "@changesets/changelog-github": "0.7.0",
     "@changesets/cli": "2.30.0",
     "@microsoft/api-extractor": "7.58.7",
-    "@types/mailparser": "^3.4.6",
     "@types/node": "^22.15.3",
-    "@types/nodemailer": "^8.0.1",
-    "@types/ws": "^8.18.1",
     "@vitest/coverage-v8": "4.1.4",
     "lint-staged": "16.4.0",
     "oxlint": "1.59.0",
@@ -54,7 +51,8 @@
     "typescript": "6.0.2",
     "vitest": "4.1.4"
   },
-  "simple-git-hooks": {},
+  "simple-git-hooks": {
+  },
   "lint-staged": {
     "*.{js,jsx,ts,tsx,mjs,cjs,mts,cts}": [
       "oxlint --fix --quiet",
