@@ -1,0 +1,16 @@
+{
+  "name": "@moonshot-ai/platform-telegram",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Telegram bot adapter for Kimi Code",
+  "type": "module",
+  "license": "MIT",
+  "main": "./src/index.ts",
+  "dependencies": {
+    "telegraf": "^4.15.3",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@moonshot-ai/platform-adapter": "workspace:*"
+  }
+}

@@ -9,3 +9,10 @@ dist/
 out/
 .vscode-test/
 *.vsix
+
+# Local clones and tool state (never commit)
+hermes-agent/
+kimi-code/
+.kimi-code/
+.railway/
+.continue/

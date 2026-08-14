@@ -11,6 +11,14 @@ const MODELS_DEV_PROVIDER = process.env.MODELS_DEV_PROVIDER ?? 'opencode';
 const PORT = Number(process.env.PORT ?? process.env.LLM_PORT ?? 8787);
 const HOST = process.env.HOST ?? '0.0.0.0';
 const MAX_RESPONSE_TOKENS = Number(process.env.MAX_RESPONSE_TOKENS ?? 8192);
+// Comma-separated allowlist of model ids this instance serves.
+// When set, any model outside the list is rejected with 404.
+const MODELS_FILTER = (process.env.MODELS_FILTER ?? '')
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean);
+
+const STARTED_AT = Date.now();
 
 const STATIC_MODELS = JSON.parse(
   readFileSync(join(__dirname, '..', 'free-models.json'), 'utf8'),
@@ -18,6 +26,11 @@ const STATIC_MODELS = JSON.parse(
 
 let catalog = { ...STATIC_MODELS };
 let catalogSource = 'static';
+
+function isAllowed(modelId) {
+  if (MODELS_FILTER.length === 0) return true;
+  return MODELS_FILTER.includes(modelId);
+}
 
 async function loadCatalog() {
   try {
@@ -71,9 +84,10 @@ function resolveApiKey(req) {
 }
 
 function listModelsWire() {
+  const ids = Object.keys(catalog).filter(isAllowed);
   return {
     object: 'list',
-    data: Object.keys(catalog).map((id) => ({
+    data: ids.map((id) => ({
       id,
       object: 'model',
       created: Math.floor(Date.now() / 1000),
@@ -84,7 +98,7 @@ function listModelsWire() {
 
 function modelInfoWire(id) {
   const m = catalog[id];
-  if (!m) return null;
+  if (!m || !isAllowed(id)) return null;
   return {
     id,
     object: 'model',
@@ -116,10 +130,10 @@ async function handleChatCompletions(req, res) {
 
   const model = body.model;
   const modelInfo = catalog[model];
-  if (!modelInfo) {
+  if (!modelInfo || !isAllowed(model)) {
     sendJson(res, 400, {
       error: {
-        message: `Model "${model}" is not in the catalog (${catalogSource}). Available: ${Object.keys(catalog).length} models`,
+        message: `Model "${model}" is not in the catalog (${catalogSource}). Available: ${Object.keys(catalog).filter(isAllowed).length} models`,
         type: 'invalid_request_error',
       },
     });
@@ -197,6 +211,20 @@ const server = http.createServer(async (req, res) => {
   }
 
   try {
+    if (req.method === 'GET' && (path === '/health' || path === '/healthz' || path === '/ready')) {
+      sendJson(res, 200, {
+        status: 'ok',
+        service: 'opencode-llm-server',
+        version: '1.2.0',
+        uptime: Math.floor((Date.now() - STARTED_AT) / 1000),
+        catalogSource,
+        modelCount: Object.keys(catalog).length,
+        filteredCount: MODELS_FILTER.length ? Object.keys(catalog).filter(isAllowed).length : null,
+        upstream: UPSTREAM,
+      });
+      return;
+    }
+
     if (req.method === 'GET' && (path === '/v1/models' || path === '/models')) {
       sendJson(res, 200, listModelsWire());
       return;
@@ -248,4 +276,7 @@ setInterval(loadCatalog, 60 * 60 * 1000).unref();
 server.listen(PORT, HOST, () => {
   console.log(`[llm-server] opencode model proxy listening on http://${HOST}:${PORT}`);
   console.log(`[llm-server] upstream: ${UPSTREAM}`);
+  console.log(
+    `[llm-server] models served: ${MODELS_FILTER.length ? MODELS_FILTER.join(', ') : 'all (' + Object.keys(catalog).length + ')'}`,
+  );
 });

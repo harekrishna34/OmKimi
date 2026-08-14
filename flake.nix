@@ -79,6 +79,13 @@
         ./packages/telemetry
         ./packages/transcript
         ./packages/tree-sitter-bash
+        ./packages/memory
+        ./packages/platform-adapter
+        ./packages/platform-telegram
+        ./packages/platform-discord
+        ./packages/platform-slack
+        ./packages/platform-email
+        ./packages/platform-voice
         ./apps/kimi-code
         ./apps/vscode
         ./apps/kimi-inspect
@@ -106,6 +113,13 @@
         "@moonshot-ai/kimi-telemetry"
         "@moonshot-ai/transcript"
         "@moonshot-ai/tree-sitter-bash"
+        "@moonshot-ai/memory"
+        "@moonshot-ai/platform-adapter"
+        "@moonshot-ai/platform-telegram"
+        "@moonshot-ai/platform-discord"
+        "@moonshot-ai/platform-slack"
+        "@moonshot-ai/platform-email"
+        "@moonshot-ai/platform-voice"
         "@moonshot-ai/kimi-code"
         "kimi-code"
         "@moonshot-ai/kimi-inspect"

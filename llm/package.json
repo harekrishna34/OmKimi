@@ -1,6 +1,6 @@
 {
   "name": "opencode-llm-server",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "private": true,
   "type": "module",
   "description": "OpenAI-compatible proxy exposing the full OpenCode Zen model catalog (models.dev) with a static free-model fallback",
