@@ -54,11 +54,12 @@ export const KNOWLEDGE_CATEGORY_LABELS: Record<KnowledgeCategory, string> = {
   custom: 'Custom',
 };
 
+// Manus AI style colors - dark theme with subtle backgrounds
 export const KNOWLEDGE_CATEGORY_COLORS: Record<KnowledgeCategory, string> = {
-  preference: 'bg-blue-500/20 text-blue-400',
-  instruction: 'bg-green-500/20 text-green-400',
-  context: 'bg-purple-500/20 text-purple-400',
-  fact: 'bg-orange-500/20 text-orange-400',
-  pattern: 'bg-cyan-500/20 text-cyan-400',
-  custom: 'bg-gray-500/20 text-gray-400',
+  preference: 'bg-[#1f6feb]/20 text-[#58a6ff]',
+  instruction: 'bg-[#238636]/20 text-[#3fb950]',
+  context: 'bg-[#8957e5]/20 text-[#bc8cff]',
+  fact: 'bg-[#d29922]/20 text-[#e3b341]',
+  pattern: 'bg-[#388bfd]/20 text-[#79c0ff]',
+  custom: 'bg-[#484f58]/20 text-[#8b949e]',
 };

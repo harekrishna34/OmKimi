@@ -13,21 +13,21 @@ export function KnowledgeRecalled({ entries, context }: KnowledgeRecalledProps) 
   if (entries.length === 0) return null;
 
   return (
-    <div className="my-2 rounded border border-[var(--color-cat-conversation)]/30 bg-[var(--color-cat-conversation)]/10 px-3 py-2">
+    <div className="my-3 rounded-lg border border-[#238636]/30 bg-[#238636]/10 px-4 py-3">
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="flex w-full items-center gap-2 text-left"
+        className="flex w-full items-center gap-2.5 text-left"
       >
-        <span className="text-[var(--color-cat-conversation)]">
-          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <div className="flex h-6 w-6 items-center justify-center rounded-full bg-[#238636]/20">
+          <svg className="h-3.5 w-3.5 text-[#3fb950]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
           </svg>
-        </span>
-        <span className="font-mono text-[12px] text-[var(--color-cat-conversation)]">
+        </div>
+        <span className="text-[13px] font-medium text-[#3fb950]">
           Knowledge recalled ({entries.length})
         </span>
         <svg
-          className={`ml-auto h-4 w-4 text-fg-3 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+          className={`ml-auto h-4 w-4 text-[#3fb950]/60 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -37,27 +37,27 @@ export function KnowledgeRecalled({ entries, context }: KnowledgeRecalledProps) 
       </button>
 
       {isExpanded && (
-        <div className="mt-2 space-y-2 border-t border-[var(--color-cat-conversation)]/20 pt-2">
+        <div className="mt-3 space-y-2 border-t border-[#238636]/20 pt-3">
           {entries.map((entry) => (
             <div
               key={entry.id}
-              className="rounded bg-surface-0/50 px-3 py-2"
+              className="rounded-md bg-[#0d1117]/50 px-3 py-2.5"
             >
               <div className="flex items-center gap-2">
-                <span className="font-mono text-[11px] text-fg-0">{entry.name}</span>
-                <span className={`rounded px-1.5 py-0.5 text-[9px] font-mono ${KNOWLEDGE_CATEGORY_COLORS[entry.category]}`}>
+                <span className="text-[13px] font-medium text-[#e6edf3]">{entry.name}</span>
+                <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${KNOWLEDGE_CATEGORY_COLORS[entry.category]}`}>
                   {KNOWLEDGE_CATEGORY_LABELS[entry.category]}
                 </span>
               </div>
-              <div className="mt-1 font-mono text-[11px] text-fg-2 line-clamp-2">
+              <p className="mt-1.5 text-[12px] leading-relaxed text-[#8b949e] line-clamp-2">
                 {entry.content}
-              </div>
+              </p>
               {entry.tags.length > 0 && (
-                <div className="mt-1 flex flex-wrap gap-1">
+                <div className="mt-2 flex flex-wrap gap-1">
                   {entry.tags.map((tag) => (
                     <span
                       key={tag}
-                      className="rounded bg-surface-2 px-1.5 py-0.5 text-[9px] font-mono text-fg-3"
+                      className="rounded bg-[#21262d] px-1.5 py-0.5 text-[10px] text-[#8b949e]"
                     >
                       {tag}
                     </span>
