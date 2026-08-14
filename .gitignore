@@ -1,6 +1,11 @@
 .cache/
 .local/
 .npm/
-config.yaml
+OmVs/
 *.log
 /tmp/
+node_modules/
+dist/
+out/
+.vscode-test/
+*.vsix
