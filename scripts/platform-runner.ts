@@ -202,30 +202,32 @@ function startHealthServer() {
 }
 
 // ── Main ────────────────────────────────────────────────────────────────────
-console.log(`[kimi-platforms] Starting — platforms: ${
-  FACTORIES.filter(f => isPlatformEnabled(f.flag)).map(f => f.platform).join(', ') || 'none'
-}`);
+async function main() {
+  console.log(`[kimi-platforms] Starting — platforms: ${
+    FACTORIES.filter(f => isPlatformEnabled(f.flag)).map(f => f.platform).join(', ') || 'none'
+  }`);
 
-startHealthServer();
+  startHealthServer();
 
-// Initial attempt
-await tryStartAdapters();
+  // Initial attempt
+  await tryStartAdapters();
 
-if (adapters.length === 0) {
-  console.log('[kimi-platforms] No adapters connected. Waiting for tokens...');
-  console.log('[kimi-platforms] Add tokens via env vars or platform-tokens.json');
-  console.log('[kimi-platforms] Retrying every 30s — send /start to your Telegram bot after adding token');
+  if (adapters.length === 0) {
+    console.log('[kimi-platforms] No adapters connected. Waiting for tokens...');
+    console.log('[kimi-platforms] Add tokens via env vars or platform-tokens.json');
+    console.log('[kimi-platforms] Retrying every 30s — send /start to your Telegram bot after adding token');
 
-  // Retry loop — stay alive and re-check every 30s
-  setInterval(async () => {
-    const prev = adapters.length;
-    await tryStartAdapters();
-    if (adapters.length > prev) {
-      console.log(`[kimi-platforms] ${adapters.length} adapter(s) now connected`);
-    }
-  }, 30_000);
-} else {
-  console.log(`[kimi-platforms] ${adapters.length} adapter(s) connected: ${adapters.map(a => a.platformName).join(', ')}`);
+    // Retry loop — stay alive and re-check every 30s
+    setInterval(async () => {
+      const prev = adapters.length;
+      await tryStartAdapters();
+      if (adapters.length > prev) {
+        console.log(`[kimi-platforms] ${adapters.length} adapter(s) now connected`);
+      }
+    }, 30_000);
+  } else {
+    console.log(`[kimi-platforms] ${adapters.length} adapter(s) connected: ${adapters.map(a => a.platformName).join(', ')}`);
+  }
 }
 
 // Graceful shutdown
@@ -236,3 +238,8 @@ const shutdown = async (signal: string) => {
 };
 process.on('SIGINT', () => shutdown('SIGINT'));
 process.on('SIGTERM', () => shutdown('SIGTERM'));
+
+main().catch((err) => {
+  console.error('[kimi-platforms] Fatal:', err);
+  process.exit(1);
+});
