@@ -58,6 +58,11 @@ export interface IUserModelingService {
 export const IUserModelingService: ServiceIdentifier<IUserModelingService> =
   createDecorator<IUserModelingService>('userModelingService');
 
+export interface UserModelingServiceOptions extends Partial<UserModelingConfig> {
+  /** Override the default preference store path (useful for testing). */
+  readonly storePath?: string;
+}
+
 export class UserModelingService extends Service implements IUserModelingService {
   declare readonly _serviceBrand: undefined;
 
@@ -65,11 +70,12 @@ export class UserModelingService extends Service implements IUserModelingService
   private readonly store: PreferenceStore;
   private initialized = false;
 
-  constructor(config: Partial<UserModelingConfig> = {}) {
+  constructor(options: UserModelingServiceOptions = {}) {
     super();
+    const { storePath: overridePath, ...config } = options;
     this.userModelingConfig = { ...DEFAULT_USER_MODELING_CONFIG, ...config };
 
-    const storePath = path.join(
+    const storePath = overridePath ?? path.join(
       os.homedir(),
       '.kimi-code',
       'user-preferences.json',
