@@ -43,6 +43,8 @@ export class TelegramAdapter extends BasePlatformAdapter {
 
       // Register handlers
       this.bot.start((ctx) => this.handleStart(ctx));
+      this.bot.command('help', (ctx) => this.handleStart(ctx)); // /help reuses welcome
+      this.bot.command('status', (ctx) => this.handleStatus(ctx));
       this.bot.on('text', (ctx) => this.handleText(ctx));
       this.bot.on('photo', (ctx) => this.handleMedia(ctx, 'image'));
       this.bot.on('video', (ctx) => this.handleMedia(ctx, 'video'));
@@ -118,7 +120,33 @@ export class TelegramAdapter extends BasePlatformAdapter {
 
   private handleStart(ctx: Context): void {
     const name = ctx.from?.first_name ?? 'there';
-    ctx.reply(`Hello ${name}! I'm Kimi Code. Type /help to see available commands.`);
+    const chatId = ctx.chat?.id;
+    const userId = ctx.from?.id;
+    console.log(`[telegram] /start from ${name} (user=${userId}, chat=${chatId})`);
+
+    ctx.reply(
+      `👋 Hello ${name}! I'm **OmKimi** — your AI coding assistant.\n\n` +
+      `Just type any message and I'll help you with:\n` +
+      `• Code writing & debugging\n` +
+      `• File editing & project setup\n` +
+      `• answering technical questions\n\n` +
+      `Commands:\n` +
+      `/help — Show this help\n` +
+      `/status — Check connection status`,
+      { parse_mode: 'Markdown' },
+    );
+  }
+
+  private handleStatus(ctx: Context): void {
+    const sessionCount = this.sessions.size;
+    ctx.reply(
+      `🟢 **OmKimi Status**\n\n` +
+      `• Platform: Telegram\n` +
+      `• Status: ${this.status}\n` +
+      `• Active sessions: ${sessionCount}\n` +
+      `• Kap-server: ${this.config.kapServerUrl}`,
+      { parse_mode: 'Markdown' },
+    );
   }
 
   private async handleText(ctx: Context): Promise<void> {
