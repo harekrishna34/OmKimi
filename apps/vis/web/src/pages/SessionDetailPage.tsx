@@ -7,6 +7,7 @@ import { TabBar, useActiveTab } from '../components/layout/TabBar';
 import { TimelineTab } from '../components/analysis/TimelineTab';
 import { ContextTab } from '../components/context/ContextTab';
 import { CronTab } from '../components/tasks/CronTab';
+import { KnowledgePanel } from '../components/knowledge/KnowledgePanel';
 import { LogsTab } from '../components/logs/LogsTab';
 import { StateTab } from '../components/state/StateTab';
 import { SubagentsTab } from '../components/subagents/SubagentsTab';
@@ -17,7 +18,7 @@ import { useSession } from '../hooks/useSession';
 import { useCron, useTasks } from '../hooks/useTasks';
 import { formatAbsoluteTime, formatRelativeTime } from '../util/time';
 
-type TabId = 'wire' | 'timeline' | 'context' | 'agents' | 'tasks' | 'cron' | 'logs' | 'state';
+type TabId = 'wire' | 'timeline' | 'context' | 'agents' | 'tasks' | 'cron' | 'logs' | 'state' | 'knowledge';
 
 export function SessionDetailPage() {
   const { sessionId } = useParams<{ sessionId: string }>();
@@ -114,6 +115,7 @@ export function SessionDetailPage() {
           { id: 'agents', label: 'Agents', count: subagentCount },
           { id: 'tasks', label: 'Tasks', count: tasksData?.tasks.length ?? null },
           { id: 'cron', label: 'Cron', count: cronData?.cron.length ?? null },
+          { id: 'knowledge', label: 'Knowledge', count: null },
           { id: 'logs', label: 'Logs', count: null },
           { id: 'state', label: 'State', count: null },
         ]}
@@ -126,6 +128,7 @@ export function SessionDetailPage() {
         {active === 'agents' ? <SubagentsTab sessionId={sessionId} /> : null}
         {active === 'tasks' ? <TasksTab sessionId={sessionId} /> : null}
         {active === 'cron' ? <CronTab sessionId={sessionId} /> : null}
+        {active === 'knowledge' ? <KnowledgePanel sessionId={sessionId} /> : null}
         {active === 'logs' ? <LogsTab sessionId={sessionId} /> : null}
         {active === 'state' ? <StateTab state={session.state} importMeta={session.importMeta} /> : null}
       </div>
