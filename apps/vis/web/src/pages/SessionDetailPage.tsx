@@ -5,7 +5,6 @@ import { api } from '../api';
 import { CopyButton } from '../components/shared/CopyButton';
 import { TabBar, useActiveTab } from '../components/layout/TabBar';
 import { TimelineTab } from '../components/analysis/TimelineTab';
-import { ComputerTab } from '../components/computer/ComputerTab';
 import { ContextTab } from '../components/context/ContextTab';
 import { CronTab } from '../components/tasks/CronTab';
 import { LogsTab } from '../components/logs/LogsTab';
@@ -18,7 +17,7 @@ import { useSession } from '../hooks/useSession';
 import { useCron, useTasks } from '../hooks/useTasks';
 import { formatAbsoluteTime, formatRelativeTime } from '../util/time';
 
-type TabId = 'wire' | 'computer' | 'timeline' | 'context' | 'agents' | 'tasks' | 'cron' | 'logs' | 'state';
+type TabId = 'wire' | 'timeline' | 'context' | 'agents' | 'tasks' | 'cron' | 'logs' | 'state';
 
 export function SessionDetailPage() {
   const { sessionId } = useParams<{ sessionId: string }>();
@@ -110,7 +109,6 @@ export function SessionDetailPage() {
         defaultTab="wire"
         tabs={[
           { id: 'wire', label: 'Wire', count: wireRecords },
-          { id: 'computer', label: 'Computer', count: null },
           { id: 'timeline', label: 'Timeline', count: null },
           { id: 'context', label: 'Context', count: null },
           { id: 'agents', label: 'Agents', count: subagentCount },
@@ -123,7 +121,6 @@ export function SessionDetailPage() {
 
       <div className="flex min-h-0 flex-1 flex-col">
         {active === 'wire' ? <WireTab sessionId={sessionId} /> : null}
-        {active === 'computer' ? <ComputerTab sessionId={sessionId} /> : null}
         {active === 'timeline' ? <TimelineTab sessionId={sessionId} /> : null}
         {active === 'context' ? <ContextTab sessionId={sessionId} /> : null}
         {active === 'agents' ? <SubagentsTab sessionId={sessionId} /> : null}
