@@ -23,6 +23,7 @@ import en_tools from './en/tools';
 import en_layout from './en/layout';
 import en_mobile from './en/mobile';
 import en_theme from './en/theme';
+import en_knowledge from './en/knowledge';
 
 import zh_common from './zh/common';
 import zh_app from './zh/app';
@@ -49,6 +50,7 @@ import zh_tools from './zh/tools';
 import zh_layout from './zh/layout';
 import zh_mobile from './zh/mobile';
 import zh_theme from './zh/theme';
+import zh_knowledge from './zh/knowledge';
 import en_onboarding from './en/onboarding';
 import zh_onboarding from './zh/onboarding';
 import en_settings from './en/settings';
@@ -89,6 +91,7 @@ export const messages = {
     settings: en_settings,
     header: en_header,
     sideChat: en_sideChat,
+    knowledge: en_knowledge,
   },
   zh: {
     common: zh_common,
@@ -120,6 +123,7 @@ export const messages = {
     settings: zh_settings,
     header: zh_header,
     sideChat: zh_sideChat,
+    knowledge: zh_knowledge,
   },
 } as const;
 

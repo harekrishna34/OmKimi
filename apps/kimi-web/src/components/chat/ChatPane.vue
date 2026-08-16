@@ -2,11 +2,12 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import type { ChatTurn, ApprovalBlock, FilePreviewRequest, ToolMedia, QueuedPromptView, TurnAttachment } from '../../types';
+import type { ChatTurn, ApprovalBlock, FilePreviewRequest, ToolMedia, QueuedPromptView, TurnAttachment, Knowledge } from '../../types';
 import ToolCall from './ToolCall.vue';
 import ToolGroup from './ToolGroup.vue';
 import Markdown from './Markdown.vue';
 import ThinkingBlock from './ThinkingBlock.vue';
+import KnowledgeBlock from './KnowledgeBlock.vue';
 import ActivityNotice from './ActivityNotice.vue';
 import CronNotice from './CronNotice.vue';
 import MessageTime from './MessageTime.vue';
@@ -117,6 +118,12 @@ const props = withDefaults(
      */
     queued?: QueuedPromptView[];
     /**
+     * Knowledge entries recalled for the current conversation. Rendered as a
+     * "Knowledge recalled (N)" block above the assistant's response, matching
+     * the Manus-style recall indicator.
+     */
+    knowledgeItems?: Knowledge[];
+    /**
      * @deprecated No longer used — Composer is rendered by ConversationPane.
      */
   }>(),
@@ -132,6 +139,7 @@ const props = withDefaults(
     isFollowing: false,
     toolDiffPanel: false,
     queued: () => [],
+    knowledgeItems: () => [],
   },
 );
 
@@ -220,6 +228,8 @@ const emit = defineEmits<{
   editQueued: [index: number];
   /** Drag-to-reorder a queued message within the active session's queue. */
   reorderQueue: [payload: { from: number; to: number }];
+  /** Open the Knowledge edit dialog for a specific entry. */
+  editKnowledge: [knowledge: Knowledge];
 }>();
 
 // ---- Inline queue (pending messages while running) ------------------------
@@ -724,6 +734,14 @@ const turnSplits = computed(() => {
            stays open), and once settled a single "Worked Xs" header appears,
            collapsed by default. The visible tail (final text) renders outside. -->
       <div v-else class="a-msg turn-anchor" :data-turn-id="turn.id">
+        <!-- Knowledge recall indicator — shown above the work fold when the
+             daemon recalled knowledge entries for this turn (Manus-style). -->
+        <KnowledgeBlock
+          v-if="knowledgeItems.length > 0 && ti === 0"
+          :items="knowledgeItems"
+          :streaming="turn.id === streamingTurnId"
+          @edit-knowledge="(k) => emit('editKnowledge', k)"
+        />
         <template v-for="split in [turnSplits.get(turn.id)!]" :key="turn.id">
           <div
             v-if="split.folded.length > 0"

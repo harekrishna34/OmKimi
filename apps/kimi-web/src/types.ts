@@ -383,3 +383,50 @@ export type ConnectionState = 'connecting' | 'connected' | 'disconnected';
 
 /** Permission mode (client-side policy). */
 export type PermissionMode = 'manual' | 'auto' | 'yolo';
+
+// ---- Knowledge System Types ----
+
+/** A single knowledge entry that can be recalled during conversations. */
+export interface Knowledge {
+  id: string;
+  /** Display name for this knowledge (e.g., "Language preference") */
+  name: string;
+  /** When this knowledge should be recalled (e.g., "Whenever communicating with the user") */
+  useWhen: string;
+  /** The actual knowledge content (max 2000 characters) */
+  content: string;
+  /** ISO timestamp when this knowledge was created */
+  createdAt: string;
+  /** ISO timestamp when this knowledge was last updated */
+  updatedAt: string;
+  /** Optional tags for categorization */
+  tags?: string[];
+  /** Whether this knowledge is currently active */
+  active: boolean;
+}
+
+/** Knowledge recall event shown in the chat stream. */
+export interface KnowledgeRecallEvent {
+  /** Unique ID for this recall event */
+  id: string;
+  /** The knowledge entries that were recalled */
+  items: Knowledge[];
+  /** ISO timestamp when the recall happened */
+  recalledAt: string;
+}
+
+/** Knowledge state for a session/workspace. */
+export interface KnowledgeState {
+  /** All knowledge entries */
+  entries: Knowledge[];
+  /** Recall events for the current conversation */
+  recalls: KnowledgeRecallEvent[];
+}
+
+/** Edit form state for knowledge dialog. */
+export interface KnowledgeFormData {
+  name: string;
+  useWhen: string;
+  content: string;
+  tags: string[];
+}

@@ -19,6 +19,7 @@ import Button from '../ui/Button.vue';
 import SegmentedControl from '../ui/SegmentedControl.vue';
 import Select from '../ui/Select.vue';
 import Tooltip from '../ui/Tooltip.vue';
+import KnowledgeSettingsPanel from './KnowledgeSettingsPanel.vue';
 
 const { t } = useI18n();
 
@@ -69,7 +70,7 @@ const emit = defineEmits<{
   close: [];
 }>();
 
-type SettingsTab = 'general' | 'agent' | 'account' | 'advanced' | 'archived';
+type SettingsTab = 'general' | 'agent' | 'account' | 'advanced' | 'archived' | 'knowledge';
 
 const activeTab = ref<SettingsTab>('general');
 
@@ -79,6 +80,7 @@ const tabs: { id: SettingsTab; labelKey: string }[] = [
   { id: 'account', labelKey: 'settings.tabs.account' },
   { id: 'advanced', labelKey: 'settings.tabs.advanced' },
   { id: 'archived', labelKey: 'settings.tabs.archived' },
+  { id: 'knowledge', labelKey: 'settings.tabs.knowledge' },
 ];
 
 const daemonEndpoint = serverEndpointLabel();
@@ -656,6 +658,11 @@ function archiveTime(iso: string): string {
               {{ archivedItems.length === 0 ? t('settings.archivedEmpty') : t('settings.archivedNoMatch') }}
             </div>
           </template>
+        </section>
+
+        <!-- Knowledge: manage knowledge entries recalled during conversations -->
+        <section v-show="activeTab === 'knowledge'" class="panel">
+          <KnowledgeSettingsPanel />
         </section>
 
       </div>

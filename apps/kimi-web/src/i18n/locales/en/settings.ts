@@ -7,6 +7,7 @@ export default {
     account: 'Account',
     advanced: 'Advanced',
     archived: 'Archived',
+    knowledge: 'Knowledge',
   },
   appearance: 'Appearance',
   notifications: 'Notifications',
