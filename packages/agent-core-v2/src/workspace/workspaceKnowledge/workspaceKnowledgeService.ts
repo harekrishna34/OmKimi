@@ -14,6 +14,7 @@ import { Service } from '#/_base/di/service';
 import { LifecycleScope } from '#/app/scopes';
 import { ILogService } from '#/_base/log/log';
 import { IAtomicDocumentStore } from '#/persistence/interface/atomicDocumentStore';
+import { Emitter, type Event } from '#/_base/event';
 
 import { IWorkspaceContext } from '#/workspace/workspaceContext/workspaceContext';
 
@@ -47,7 +48,9 @@ export class WorkspaceKnowledgeService extends Service implements IWorkspaceKnow
   declare readonly _serviceBrand: undefined;
 
   readonly ready: Promise<void>;
+  readonly onDidChange: Event<void>;
 
+  private readonly _onDidChange = new Emitter<void>();
   private readonly scope: string;
   private entries: KnowledgeEntry[] = [];
   private writeQueue: Promise<void> = Promise.resolve();
@@ -58,6 +61,7 @@ export class WorkspaceKnowledgeService extends Service implements IWorkspaceKnow
     @ILogService private readonly log: ILogService,
   ) {
     super();
+    this.onDidChange = this._onDidChange.event;
     this.scope = `${ctx.persistenceScope}/knowledge`;
     this.ready = this.load();
   }
@@ -146,6 +150,7 @@ export class WorkspaceKnowledgeService extends Service implements IWorkspaceKnow
       workspaceId: this.ctx.workspaceId,
       knowledgeId: entry.id,
     });
+    this._onDidChange.fire();
     return entry;
   }
 
@@ -159,6 +164,7 @@ export class WorkspaceKnowledgeService extends Service implements IWorkspaceKnow
       workspaceId: this.ctx.workspaceId,
       knowledgeId: id,
     });
+    this._onDidChange.fire();
     return true;
   }
 
@@ -166,7 +172,15 @@ export class WorkspaceKnowledgeService extends Service implements IWorkspaceKnow
     await this.ready;
     const active = this.entries.filter((e) => e.active);
     if (active.length === 0) return '';
-    return ['## Knowledge', '', ...active.map(entryToBlock), ''].join('\n');
+    return [
+      '## Knowledge — User Preferences (MUST FOLLOW)',
+      '',
+      'The following are durable user preferences. Apply them in EVERY response',
+      'when the "use when" condition matches. These override default behavior.',
+      '',
+      ...active.map(entryToBlock),
+      '',
+    ].join('\n');
   }
 }
 

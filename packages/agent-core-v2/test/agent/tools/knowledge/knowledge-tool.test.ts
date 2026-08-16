@@ -18,6 +18,7 @@ function makeKnowledgeService(
   return {
     _serviceBrand: undefined,
     ready: Promise.resolve(),
+    onDidChange: () => ({ dispose: () => {} }),
     entries: () => entries,
     async list() {
       return entries;

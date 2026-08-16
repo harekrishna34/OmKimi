@@ -43,7 +43,7 @@ function formatContent(content: string): string {
         <Icon name="bolt" size="sm" />
       </span>
       <span class="kb-label">
-        {{ t('conversation.knowledge.recalled', { count: items.length }) }}
+        {{ t('knowledge.knowledge.recalled', { count: items.length }) }}
       </span>
       <Icon
         class="kb-chevron"

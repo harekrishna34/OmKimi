@@ -10,6 +10,7 @@
  */
 
 import { createDecorator, type ServiceIdentifier } from '#/_base/di/instantiation';
+import type { Event } from '#/_base/event';
 
 export interface KnowledgeEntry {
   readonly id: string;
@@ -34,6 +35,9 @@ export interface IWorkspaceKnowledgeService {
   readonly _serviceBrand: undefined;
 
   readonly ready: Promise<void>;
+
+  /** Fired whenever entries are created, updated, or deleted. */
+  readonly onDidChange: Event<void>;
 
   list(): Promise<readonly KnowledgeEntry[]>;
   getEntry(id: string): Promise<KnowledgeEntry | undefined>;

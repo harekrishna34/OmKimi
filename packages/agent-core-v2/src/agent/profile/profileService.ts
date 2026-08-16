@@ -306,6 +306,19 @@ export class AgentProfileService extends Disposable implements IAgentProfileServ
         }
       }),
     );
+
+    // Knowledge entries changed → rebuild system prompt so the LLM sees
+    // the updated knowledge block (e.g. new language preference).
+    this._register(
+      this.knowledge.onDidChange(() => {
+        const svc = this.knowledge.current;
+        if (svc !== undefined) {
+          this._register(svc.onDidChange(() => {
+            void this.refreshSystemPrompt();
+          }));
+        }
+      }),
+    );
   }
 
   private get activeToolNamesOverlay(): readonly string[] | undefined {
