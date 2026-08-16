@@ -110,9 +110,6 @@ function onHeadClick(): void {
 .tool-group {
   display: flex;
   flex-direction: column;
-  background: var(--color-surface);
-  border: 1px solid var(--color-line);
-  border-radius: var(--radius-md);
   overflow: hidden;
 }
 .tool-group-head {
@@ -121,7 +118,7 @@ function onHeadClick(): void {
   gap: 8px;
   width: 100%;
   height: 32px;
-  padding: 0 11px;
+  padding: 0;
   border: none;
   background: transparent;
   color: var(--color-text-muted);
@@ -132,7 +129,6 @@ function onHeadClick(): void {
   user-select: none;
 }
 .tool-group-head:hover {
-  background: var(--color-surface-sunken);
   color: var(--color-text);
 }
 .tool-group-head:focus-visible {

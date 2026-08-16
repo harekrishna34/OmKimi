@@ -534,16 +534,29 @@ const turnSplits = computed(() => {
 });
 
 const workOpen = ref<Record<string, boolean>>({});
+const workManual = ref<Record<string, boolean>>({});
 
 function isWorkOpen(turn: ChatTurn): boolean {
   if (turn.id === streamingTurnId.value) return true;
-  return workOpen.value[turn.id] ?? true;
+  return workOpen.value[turn.id] ?? false;
 }
 
 function toggleWork(turn: ChatTurn): void {
   if (turn.id === streamingTurnId.value) return;
+  workManual.value[turn.id] = true;
   workOpen.value[turn.id] = !isWorkOpen(turn);
 }
+
+// Auto-collapse the work section once a streaming turn finishes, unless the
+// user manually toggled it while it was running.
+watch(
+  () => streamingTurnId.value,
+  (newId, oldId) => {
+    if (oldId && !newId && !workManual.value[oldId]) {
+      workOpen.value[oldId] = false;
+    }
+  },
+);
 
 function workHeaderLabel(turn: ChatTurn): string {
   if (turn.id === streamingTurnId.value) return 'Working…';
@@ -1063,20 +1076,18 @@ function workHeaderLabel(turn: ChatTurn): string {
   gap: 6px;
   align-self: flex-start;
   height: 28px;
-  padding: 0 8px;
+  padding: 0;
   border: none;
-  border-radius: var(--radius-md);
+  border-radius: 0;
   background: transparent;
   color: var(--color-text-muted);
   font: var(--text-sm)/1 var(--font-ui);
   font-weight: var(--weight-medium);
   cursor: pointer;
   user-select: none;
-  transition: color 0.12s ease, background-color 0.12s ease;
 }
 .work-head:hover {
   color: var(--color-text);
-  background: var(--color-surface-sunken);
 }
 .work-head:focus-visible {
   outline: none;

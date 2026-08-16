@@ -71,25 +71,24 @@ watch(
   gap: 8px;
   align-self: flex-start;
   height: 28px;
-  padding: 0 8px;
+  padding: 0;
   margin: 0;
   border: none;
-  border-radius: var(--radius-md);
+  border-radius: 0;
   background: transparent;
   color: var(--color-text-muted);
   font: var(--text-sm)/1 var(--font-ui);
   font-weight: var(--weight-medium);
   cursor: pointer;
   user-select: none;
-  transition: color 0.12s ease, background-color 0.12s ease;
+  transition: color 0.12s ease;
 }
 .tb-head:hover {
   color: var(--color-text);
-  background: var(--color-surface-sunken);
 }
 .tb-head:focus-visible {
   outline: none;
-  box-shadow: inset 0 0 0 2px var(--color-accent-soft);
+  box-shadow: none;
 }
 
 .tb-icon {

@@ -84,18 +84,13 @@ function onHeadClick(): void {
 <style scoped>
 .box {
   margin: 0;
-  background: var(--color-surface);
-  border: 1px solid var(--color-line);
-  border-radius: var(--radius-md);
   overflow: hidden;
-  transition: border-color var(--duration-base) var(--ease-out);
 }
 .box.err {
-  border-color: color-mix(in srgb, var(--color-danger) 25%, var(--bg));
+  background: transparent;
 }
 
-/* Stacked calls: the group owns the outer border + radius, so each row is flat
-   and separated only by a top hairline. */
+/* Stacked calls: rows are flat with a small gap. */
 .box.stacked {
   border: none;
   border-radius: 0;
@@ -105,7 +100,8 @@ function onHeadClick(): void {
 }
 .box.stack-middle,
 .box.stack-last {
-  border-top: 1px solid var(--color-line);
+  border-top: none;
+  margin-top: 4px;
 }
 
 .bh {
@@ -113,20 +109,19 @@ function onHeadClick(): void {
   align-items: center;
   gap: 8px;
   min-height: 30px;
-  padding: 0 11px;
+  padding: 0;
   cursor: pointer;
   font: var(--text-sm) var(--font-mono);
   color: var(--color-text);
 }
-.box.open .bh,
 .bh:hover {
-  background: var(--color-surface-sunken);
+  color: var(--color-text);
 }
 .box.err .bh {
-  background: color-mix(in srgb, var(--color-danger) 4%, var(--bg));
+  background: transparent;
 }
 .box.err .bh:hover {
-  background: color-mix(in srgb, var(--color-danger) 7%, var(--bg));
+  background: transparent;
 }
 
 .gl {
@@ -207,9 +202,7 @@ function onHeadClick(): void {
 .bb-pad {
   min-height: 0;
   overflow: hidden;
-  padding: var(--space-2) var(--space-3) var(--space-3);
-  background: var(--color-surface-sunken);
-  border-top: 1px solid var(--color-line);
+  padding: var(--space-2) 0 var(--space-3);
   color: var(--color-text);
   font: var(--text-sm)/1.65 var(--font-mono);
   white-space: pre-wrap;
