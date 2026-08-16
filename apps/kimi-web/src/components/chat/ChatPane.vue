@@ -3,10 +3,6 @@
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import type { ChatTurn, ApprovalBlock, FilePreviewRequest, ToolMedia, QueuedPromptView, TurnAttachment } from '../../types';
-import ToolCall from './ToolCall.vue';
-import ToolGroup from './ToolGroup.vue';
-import Markdown from './Markdown.vue';
-import ThinkingBlock from './ThinkingBlock.vue';
 import ExecutionTimeline from './ExecutionTimeline.vue';
 import ActivityNotice from './ActivityNotice.vue';
 import CronNotice from './CronNotice.vue';
@@ -21,11 +17,8 @@ import { useConfirmDialog } from '../../composables/useConfirmDialog';
 import { copyTextToClipboard } from '../../lib/clipboard';
 import { openFileAttachment } from '../../lib/openFileAttachment';
 import {
-  assistantRenderBlocks,
   formatDuration,
   formatTokens,
-  renderBlockKey,
-  turnBlocks,
   turnFinalText,
   turnToMarkdown,
 } from '../chatTurnRendering';
@@ -507,13 +500,8 @@ function onAttachmentClick(att: TurnAttachment): void {
   });
 }
 
-function isStreamingRenderBlock(turn: ChatTurn, block: { sourceIndex: number }): boolean {
-  if (turn.id !== streamingTurnId.value) return false;
-  return block.sourceIndex === turnBlocks(turn).length - 1;
-}
-
 // NOTE: the turn-summary line ("已调用 N 个工具…") was removed in f9417af. If it
-// comes back, rebuild it from turnBlocks() with i18n strings — the old
+// comes back, rebuild it from the ordered turn blocks with i18n strings — the old
 // implementation lives in git history at f9417af^.
 </script>
 
@@ -634,21 +622,26 @@ function isStreamingRenderBlock(turn: ChatTurn, block: { sourceIndex: number }):
            a lightweight in-transcript notice rather than a user bubble. -->
       <CronNotice v-else-if="turn.role === 'cron'" :text="turn.text" :cron="turn.cron" :turn-id="turn.id" :created-at="turn.createdAt" />
 
-      <!-- Assistant turn → Collapsible Agent Activity Timeline -->
+      <!-- Assistant turn → left-aligned, no name/role label. -->
       <div v-else class="a-msg turn-anchor" :data-turn-id="turn.id">
         <ExecutionTimeline
           :turn="turn"
+          :streaming="turn.id === streamingTurnId"
           mobile
           :tool-diff-panel="toolDiffPanel"
-          :streaming="turn.id === streamingTurnId"
+          :duration="turn.durationMs !== undefined ? formatDuration(turn.durationMs) : ''"
+          @open-thinking="emit('openThinking', { turnId: turn.id, blockIndex: $event })"
           @open-media="emit('openMedia', $event)"
           @open-file="emit('openFile', $event)"
           @open-tool-diff="emit('openToolDiff', $event)"
           @open-agent="emit('openAgent', $event)"
-          @open-thinking="emit('openThinking', $event)"
         />
-        <div v-if="turn.id !== streamingTurnId && isAssistantRunEnd(ti) && assistantRunFinalText(ti).trim().length > 0" class="a-msg-ft">
+        <div v-if="turn.id !== streamingTurnId && isAssistantRunEnd(ti) && (assistantRunFinalText(ti).trim().length > 0 || turn.durationMs !== undefined)" class="a-msg-ft">
+          <Tooltip :text="`${turn.durationMs} ms`">
+            <span v-if="turn.durationMs !== undefined" class="a-duration">{{ formatDuration(turn.durationMs) }}</span>
+          </Tooltip>
           <button
+            v-if="assistantRunFinalText(ti).trim().length > 0"
             class="a-cpbtn"
             :aria-label="t('filePreview.copy')"
             @click="copyAssistantRun(ti)"
