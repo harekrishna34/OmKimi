@@ -578,6 +578,21 @@ function toggleFold(turn: ChatTurn): void {
   foldOpen.value[turn.id] = !isFoldOpen(turn);
 }
 
+/** Whether an assistant turn is the anchor for the knowledge-recall indicator:
+ *  the assistant turn directly following the LATEST user turn (the response to
+ *  the newest prompt). Recall items are matched against the newest prompt, so
+ *  they belong above that response only. */
+function isRecallAnchor(ti: number): boolean {
+  const turn = props.turns[ti];
+  if (!turn || turn.role !== 'assistant') return false;
+  const prev = props.turns[ti - 1];
+  if (!prev || prev.role !== 'user') return false;
+  for (let i = ti + 1; i < props.turns.length; i++) {
+    if (props.turns[i]?.role === 'user') return false;
+  }
+  return true;
+}
+
 function foldDurationMs(turn: ChatTurn): number | undefined {
   if (isTurnLive(turn)) {
     const start = turnStartMs(turn);
@@ -734,10 +749,10 @@ const turnSplits = computed(() => {
            stays open), and once settled a single "Worked Xs" header appears,
            collapsed by default. The visible tail (final text) renders outside. -->
       <div v-else class="a-msg turn-anchor" :data-turn-id="turn.id">
-        <!-- Knowledge recall indicator — shown above the work fold when the
-             daemon recalled knowledge entries for this turn (Manus-style). -->
+        <!-- Knowledge recall indicator — shown above the response to the
+             newest user prompt when entries matched (Manus-style). -->
         <KnowledgeBlock
-          v-if="knowledgeItems.length > 0 && ti === 0"
+          v-if="knowledgeItems.length > 0 && isRecallAnchor(ti)"
           :items="knowledgeItems"
           :streaming="turn.id === streamingTurnId"
           @edit-knowledge="(k) => emit('editKnowledge', k)"

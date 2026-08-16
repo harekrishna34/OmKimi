@@ -143,6 +143,95 @@ export function useKnowledge() {
     });
   }
 
+  // ---- Adaptive auto-learning ---------------------------------------------
+  // The agent learns small durable preferences from user messages and saves
+  // them as knowledge entries — the same way language adaptation works today
+  // but explicit, visible, and editable in Settings → Knowledge.
+
+  /** Common Hindi/Hinglish word markers (case-insensitive word matches). */
+  const HINGLISH_MARKERS = [
+    'hai', 'hain', 'haan', 'ji', 'ka', 'ki', 'ke', 'ko', 'kya', 'kyu', 'nahi', 'nahin',
+    'bhai', 'bhaiya', 'yaar', 'matlab', 'karna', 'karne', 'karo', 'hoga', 'hogi',
+    'raha', 'rahi', 'wala', 'wale', 'mujhe', 'tumhe', 'tumhara', 'hamara', 'aap', 'hum',
+    'acha', 'theek', 'thik', 'dikha', 'batao', 'chahiye', 'karenge', 'kyunki',
+    'agar', 'jab', 'toh', 'bhi', 'mein', 'par', 'aur', 'usko', 'isko',
+    'mere', 'mera', 'tera', 'apna', 'ho', 'hota', 'hoti', 'tha', 'thi',
+    'sab', 'bahut', 'kaam', 'kar', 'de', 'do', 'lo', 'le', 'se', 'pe',
+    'sun', 'suno', 'dekho', 'lagta', 'samajh', 'samjho', 'pata', 'bolo',
+    'banao', 'kijiye', 'dijiye', 'padho', 'likho', 'chalo', 'kuch', 'kuchh',
+    'sahi', 'galat', 'wahi', 'tum', 'rahe', 'honge',
+  ];
+
+  /** Detect Hinglish: ≥2 distinct Hindi word markers in the message. */
+  function isHinglish(text: string): boolean {
+    const lower = text.toLowerCase();
+    let hits = 0;
+    for (const m of HINGLISH_MARKERS) {
+      if (new RegExp(`\\b${m}\\b`, 'i').test(lower)) {
+        hits += 1;
+        if (hits >= 2) return true;
+      }
+    }
+    return false;
+  }
+
+  /** Detect pure Hindi (Devanagari script). */
+  function isHindi(text: string): boolean {
+    return /[\u0900-\u097F]/.test(text);
+  }
+
+  function hasKnowledgeNamed(name: string): boolean {
+    return state.value.entries.some(
+      (e) => e.name.toLowerCase() === name.toLowerCase(),
+    );
+  }
+
+  /**
+   * Learn durable preferences from a user message. Detectors run once each —
+   * an entry is only created when no entry with the same name exists yet.
+   * Returns the entries created for this message (empty when nothing new).
+   */
+  function autoLearnFromPrompt(text: string): Knowledge[] {
+    if (!text.trim()) return [];
+    const created: Knowledge[] = [];
+
+    // 1. Language preference — learned from how the user actually writes.
+    if (!hasKnowledgeNamed('Language preference')) {
+      let language: string | null = null;
+      if (isHindi(text)) language = 'Hindi';
+      else if (isHinglish(text)) language = 'Hinglish';
+      else if (/^[\x00-\x7F]+$/.test(text)) language = 'English';
+      if (language) {
+        const entry = createKnowledge({
+          name: 'Language preference',
+          useWhen: 'Whenever communicating with the user',
+          content: `Always use ${language} when communicating with the user.`,
+          tags: ['auto-learned', 'language'],
+        });
+        created.push(entry);
+      }
+    }
+
+    // 2. User name — learned from explicit self-introductions.
+    if (!hasKnowledgeNamed('User name')) {
+      const nameMatch = text.match(
+        /(?:my name is|call me|mera naam|i am) ([A-Za-z\u0900-\u097F]+)/i,
+      );
+      if (nameMatch?.[1]) {
+        const name = nameMatch[1];
+        const entry = createKnowledge({
+          name: 'User name',
+          useWhen: 'Whenever addressing the user',
+          content: `The user's name is ${name}. Address them by this name when appropriate.`,
+          tags: ['auto-learned', 'user-name'],
+        });
+        created.push(entry);
+      }
+    }
+
+    return created;
+  }
+
   // ---- Recall Events ----
 
   /** Record a knowledge recall event */
@@ -210,6 +299,9 @@ export function useKnowledge() {
     getKnowledge,
     searchKnowledge,
     findRelevantKnowledge,
+
+    // Adaptive auto-learning
+    autoLearnFromPrompt,
 
     // Recalls
     recordRecall,

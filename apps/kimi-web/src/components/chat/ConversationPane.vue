@@ -194,11 +194,26 @@ let copyConversationCopiedTimer: ReturnType<typeof setTimeout> | null = null;
 // ---- Knowledge recall (Manus-style) ---------------------------------------
 // Matches saved knowledge entries against the latest user prompt and passes
 // them to ChatPane for the "Knowledge recalled (N)" indicator. Clicking an
-// entry opens the edit dialog.
-const { findRelevantKnowledge } = useKnowledge();
+// entry opens the edit dialog. New user messages also feed the adaptive
+// auto-learner (language, name, …) so durable preferences are picked up
+// without the user creating them manually.
+const { findRelevantKnowledge, autoLearnFromPrompt } = useKnowledge();
 
 const knowledgeEditTarget = ref<Knowledge | null>(null);
 const knowledgeEditVisible = ref(false);
+
+// Auto-learn from every user message that arrives (new turns only — the
+// detectors skip entries that already exist, so this is idempotent).
+watch(
+  () => props.turns,
+  (turns) => {
+    for (const turn of turns) {
+      if (turn.role !== 'user' || !turn.text.trim()) continue;
+      autoLearnFromPrompt(turn.text);
+    }
+  },
+  { immediate: true },
+);
 
 /** Knowledge entries relevant to the most recent user prompt. */
 const matchedKnowledge = computed<Knowledge[]>(() => {
