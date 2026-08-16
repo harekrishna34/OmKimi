@@ -1,15 +1,17 @@
 <!-- apps/kimi-web/src/components/chat/tool-calls/TodoTool.vue -->
-<!-- Clean in-transcript renderer for the model's TodoList tool. The backend
-     emits plain text (`[done] Title` lines); instead of dumping that raw text
-     we parse the structured `todos` array from the tool call argument (falling
-     back to parsing the output lines) and render a checkmark card with a
-     progress header — matching the original Manus-style todo UI. -->
+<!-- Structured todo renderer (ported from the original bundle's TodoTool, scope
+     data-v-461db4c2). Parses the `todos`/`items` array from the tool argument,
+     renders a progress chip + bar in the trailing slot and one StatusGlyph row
+     per entry in the body. Falls back to the raw output block when the
+     argument carries no structured list. -->
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import type { FilePreviewRequest, ToolCall, ToolMedia } from '../../../types';
-import { toolGlyph, toolLabel } from '../../../lib/toolMeta';
-import ToolRow from '../ToolRow.vue';
+import { parseArg, str } from '../../../lib/toolMeta';
+import ToolDisclosure from './ToolDisclosure.vue';
+import ToolOutputBlock from './ToolOutputBlock.vue';
+import Icon from '../../ui/Icon.vue';
 import StatusGlyph, { type StatusGlyphStatus } from '../StatusGlyph.vue';
 
 interface TodoEntry {
@@ -31,68 +33,48 @@ defineEmits<{
   openMedia: [media: ToolMedia];
   openFile: [target: FilePreviewRequest];
   openToolDiff: [id: string];
+  openAgent: [toolCallId: string];
 }>();
 
 const { t } = useI18n();
 
-/** Parse the tool call argument JSON into a todos array. */
-function parseArgTodos(arg: string): TodoEntry[] | undefined {
-  try {
-    const d = JSON.parse(arg);
-    if (Array.isArray(d?.todos)) {
-      const list = d.todos as Array<{ title?: unknown; status?: unknown }>;
-      const parsed: TodoEntry[] = [];
-      for (const x of list) {
-        if (!x || typeof x !== 'object') continue;
-        const title = typeof x.title === 'string' ? x.title.trim() : '';
-        if (title.length === 0) continue;
-        const status: TodoEntry['status'] =
-          x.status === 'in_progress' || x.status === 'done' || x.status === 'pending'
-            ? x.status
-            : 'pending';
-        parsed.push({ title, status });
-      }
-      return parsed;
-    }
-  } catch {
-    /* fall through to output parsing */
-  }
-  return undefined;
-}
-
-/** Parse the tool's text output (`[done] Title` lines) into a todos array. */
-function parseOutputTodos(lines?: string[]): TodoEntry[] {
+/** Parse the tool argument into todo rows: `todos` array, falling back to
+ *  `items`. Titles fall back across title/content/activeForm/text; statuses
+ *  fold in_progress / done|completed / anything-else→pending. */
+function parseTodos(arg: string): TodoEntry[] {
+  const d = parseArg(arg);
+  const list = d && Array.isArray(d.todos) ? d.todos : d && Array.isArray(d.items) ? d.items : undefined;
+  if (!list) return [];
   const out: TodoEntry[] = [];
-  for (const line of lines ?? []) {
-    const m = line.trim().match(/^\[(pending|in_progress|done)\]\s+(.+)$/);
-    if (m && m[1] && m[2]) {
-      out.push({ status: m[1] as TodoEntry['status'], title: m[2].trim() });
-    }
+  for (const v of list) {
+    if (!v || typeof v !== 'object') continue;
+    const k = v as Record<string, unknown>;
+    const title = str(k.title) ?? str(k.content) ?? str(k.activeForm) ?? str(k.text);
+    if (!title) continue;
+    const raw = str(k.status) ?? 'pending';
+    const status: TodoEntry['status'] =
+      raw === 'in_progress' ? 'in_progress' : raw === 'done' || raw === 'completed' ? 'done' : 'pending';
+    out.push({ title, status });
   }
   return out;
 }
 
-const todos = computed<TodoEntry[]>(() => {
-  const fromArg = parseArgTodos(props.tool.arg);
-  if (fromArg !== undefined) return fromArg;
-  return parseOutputTodos(props.tool.output);
-});
-
+const status = computed(() => props.tool.status);
+const todos = computed<TodoEntry[]>(() => parseTodos(props.tool.arg));
+const doneCount = computed(() => todos.value.filter((x) => x.status === 'done').length);
 const total = computed(() => todos.value.length);
-const done = computed(() => todos.value.filter((x) => x.status === 'done').length);
-const inProgress = computed(() => todos.value.filter((x) => x.status === 'in_progress').length);
-const progressPct = computed(() => (total.value === 0 ? 0 : Math.round((done.value / total.value) * 100)));
+const current = computed(() => todos.value.find((x) => x.status === 'in_progress'));
+const ratio = computed(() => (total.value > 0 ? doneCount.value / total.value : 0));
+const hasOutput = computed(() => !!props.tool.output && props.tool.output.length > 0);
+const expandable = computed(() => total.value > 0 || hasOutput.value);
+const open = ref(props.tool.defaultExpanded === true && expandable.value);
 
-const status = computed<'running' | 'ok' | 'error'>(() => props.tool.status as 'running' | 'ok' | 'error');
-const label = computed(() => toolLabel(props.tool.name));
-const glyph = computed(() => toolGlyph(props.tool.name));
-
-// Empty query (no todos in arg, none in output): nothing worth a card.
-const isEmpty = computed(() => total.value === 0);
-const open = ref(!isEmpty.value);
-watch(isEmpty, (empty) => {
-  if (!empty) open.value = true;
-});
+watch(
+  () => [props.tool.defaultExpanded, props.tool.status] as const,
+  () => {
+    if (props.tool.defaultExpanded === true && expandable.value) open.value = true;
+  },
+);
 
 function glyphStatus(s: TodoEntry['status']): StatusGlyphStatus {
   return s === 'in_progress' ? 'run' : s;
@@ -100,122 +82,76 @@ function glyphStatus(s: TodoEntry['status']): StatusGlyphStatus {
 </script>
 
 <template>
-  <ToolRow
-    :status="status"
-    :icon="glyph"
-    :name="label"
-    :arg="''"
-    :time="tool.timing ?? ''"
-    :open="open"
-    :expandable="!isEmpty"
-    :stacked="stackPosition !== 'single'"
-    :stack-position="stackPosition"
-    @toggle="open = !open"
-  >
-    <template #trailing>
-      <span v-if="total > 0" class="todo-chip">{{ done }}/{{ total }}</span>
+  <ToolDisclosure :status="status" :open="open" :expandable="expandable" @toggle="open = !open">
+    <template #leading>
+      <Icon name="check-list" size="sm" />
     </template>
-
-    <div v-if="isEmpty" class="todo-empty">{{ t('tasks.emptyTodo') }}</div>
-
-    <div v-else class="todo-body">
-      <div class="todo-progress">
-        <div class="todo-progress-bar">
-          <div class="todo-progress-fill" :style="{ width: `${progressPct}%` }" />
-        </div>
-        <span class="todo-progress-label">
-          {{ t('tasks.todoProgress', { done, total, inProgress }) }}
-        </span>
-      </div>
-      <div class="todo-rows">
-        <div
-          v-for="(td, i) in todos"
-          :key="i"
-          class="todo-row"
-          :class="`s-${td.status}`"
-        >
+    <template #trailing>
+      <span v-if="total > 0" class="tl-chip">{{ doneCount }}/{{ total }}</span>
+      <span v-if="total > 0" class="todo-bar" aria-hidden="true">
+        <span class="todo-fill" :style="{ width: `${ratio * 100}%` }" />
+      </span>
+    </template>
+    <template #body>
+      <div v-if="total > 0" class="todo-list">
+        <div v-for="(td, i) in todos" :key="i" class="todo-row" :class="`s-${td.status}`">
           <StatusGlyph :status="glyphStatus(td.status)" />
           <span class="todo-title">{{ td.title }}</span>
         </div>
       </div>
-    </div>
-  </ToolRow>
+      <ToolOutputBlock v-else-if="hasOutput" :lines="tool.output" />
+    </template>
+    <span class="tl-name">{{ t('tools.label.todo') }}</span>
+    <span v-if="current" class="tl-dim">{{ current.title }}</span>
+  </ToolDisclosure>
 </template>
 
 <style scoped>
-.todo-chip {
-  color: var(--color-text-muted);
-  font-size: var(--text-xs);
-  flex: none;
-}
-
-.todo-empty {
-  color: var(--color-text-faint);
-  font-style: italic;
-  font-size: var(--text-sm);
-  padding: var(--space-1) 0;
-}
-
-.todo-body {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  padding: var(--space-1) 0 var(--space-1);
-}
-
-.todo-progress {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-
-.todo-progress-bar {
-  flex: none;
-  width: 120px;
-  height: 5px;
-  border-radius: 999px;
-  background: var(--color-surface-sunken);
+/* Ported from the deployed bundle (scope data-v-461db4c2).
+   --color-well → --color-surface-sunken. */
+.todo-bar {
+  display: inline-flex;
+  width: 36px;
+  height: 3px;
+  border-radius: var(--radius-full);
+  background: var(--color-line);
   overflow: hidden;
+  flex: none;
 }
-
-.todo-progress-fill {
-  height: 100%;
-  border-radius: 999px;
+.todo-fill {
   background: var(--color-success);
-  transition: width var(--duration-base) var(--ease-out);
+  border-radius: var(--radius-full);
+  transition: width var(--duration-slow) var(--ease-out);
 }
-
-.todo-progress-label {
-  color: var(--color-text-muted);
-  font-size: var(--text-xs);
-}
-
-.todo-rows {
+.todo-list {
   display: flex;
   flex-direction: column;
   gap: 1px;
+  border: 0.5px solid var(--color-line);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-sunken);
+  padding: var(--space-2) var(--space-3);
+  max-height: calc(12 * 1.6 * var(--content-font-size));
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
-
 .todo-row {
   display: flex;
   align-items: center;
   gap: 7px;
-  padding: 3px 0;
+  padding: 2px 0;
+  font-size: calc(var(--content-font-size) - 1px);
   color: var(--color-text);
-  font-size: var(--text-sm);
 }
-
 .todo-title {
   flex: 1;
   min-width: 0;
   overflow-wrap: anywhere;
   line-height: 1.4;
 }
-
 .todo-row.s-in_progress .todo-title {
   font-weight: var(--weight-medium);
 }
-
 .todo-row.s-done .todo-title {
   color: var(--color-text-faint);
   text-decoration: line-through;

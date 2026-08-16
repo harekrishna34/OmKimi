@@ -21,10 +21,20 @@ function parseArg(arg: string): Record<string, unknown> | null {
  * Build a line diff for an Edit/Write tool call from its input. Returns null
  * for any other tool, for operations a from-args diff cannot represent
  * (replace_all, append), or when the inputs are too large to diff cheaply.
+ *
+ * `multi_edit` merges its edits array into one diff: each edit is appended
+ * after a `···` hunk separator, with its line numbers offset by the cumulative
+ * line counts of the previous edits (ported from the original bundle's `wN`).
  */
+const MAX_STRING_CHARS = 100 * 1024; // per old/new string, like the original I1
+
+function countLines(s: string): number {
+  return s === '' ? 0 : s.endsWith('\n') ? s.slice(0, -1).split('\n').length : s.split('\n').length;
+}
+
 export function buildEditDiffLines(tool: { name: string; arg: string }): DiffViewLine[] | null {
   const kind = normalizeToolName(tool.name);
-  if (kind !== 'edit' && kind !== 'write') return null;
+  if (kind !== 'edit' && kind !== 'multi_edit' && kind !== 'write') return null;
   const d = parseArg(tool.arg);
   if (!d) return null;
   if (kind === 'edit') {
@@ -32,7 +42,37 @@ export function buildEditDiffLines(tool: { name: string; arg: string }): DiffVie
     const before = typeof d.old_string === 'string' ? d.old_string : undefined;
     const after = typeof d.new_string === 'string' ? d.new_string : undefined;
     if (before === undefined || after === undefined) return null;
+    if (before.length > MAX_STRING_CHARS || after.length > MAX_STRING_CHARS) return null;
     return buildDiffLines(before, after);
+  }
+  if (kind === 'multi_edit') {
+    const edits = Array.isArray(d.edits) ? d.edits : undefined;
+    if (!edits || edits.length === 0) return null;
+    const merged: DiffViewLine[] = [];
+    let oldOffset = 0;
+    let newOffset = 0;
+    for (const edit of edits) {
+      if (!edit || typeof edit !== 'object') return null;
+      const e = edit as Record<string, unknown>;
+      if (e.replace_all === true) return null;
+      const before = typeof e.old_string === 'string' ? e.old_string : undefined;
+      const after = typeof e.new_string === 'string' ? e.new_string : undefined;
+      if (before === undefined || after === undefined) return null;
+      if (before.length > MAX_STRING_CHARS || after.length > MAX_STRING_CHARS) return null;
+      const diff = buildDiffLines(before, after);
+      if (diff === null) return null;
+      if (merged.length > 0) merged.push({ type: 'hunk', text: '···' });
+      for (const row of diff) {
+        merged.push({
+          ...row,
+          oldNo: row.oldNo !== undefined ? row.oldNo + oldOffset : undefined,
+          newNo: row.newNo !== undefined ? row.newNo + newOffset : undefined,
+        });
+      }
+      oldOffset += countLines(before);
+      newOffset += countLines(after);
+    }
+    return merged;
   }
   // Write only reports the new content (and whether it appended); the client
   // cannot tell a new file from an overwrite of an existing one. A from-empty

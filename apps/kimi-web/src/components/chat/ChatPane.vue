@@ -13,12 +13,15 @@ import CronNotice from './CronNotice.vue';
 import MessageTime from './MessageTime.vue';
 import AuthMedia from './AuthMedia.vue';
 import AttachmentChip from './AttachmentChip.vue';
+import TurnFilesSummary from './TurnFilesSummary.vue';
 import MoonSpinner from '../ui/MoonSpinner.vue';
 import Spinner from '../ui/Spinner.vue';
 import Icon from '../ui/Icon.vue';
 import { useConfirmDialog } from '../../composables/useConfirmDialog';
+import { useKimiWebClient } from '../../composables/useKimiWebClient';
 import { copyTextToClipboard } from '../../lib/clipboard';
 import { openFileAttachment } from '../../lib/openFileAttachment';
+import { turnFileChanges } from '../../lib/turnFiles';
 import {
   formatElapsed,
   formatTokens,
@@ -624,6 +627,30 @@ const turnSplits = computed(() => {
   }
   return map;
 });
+
+// "Files changed this turn" summaries — computed once per assistant turn so
+// the card only renders for turns that actually touched files.
+const client = useKimiWebClient();
+const workspaceCwd = computed(() => client.status.value.cwd);
+
+const turnChanges = computed(() => {
+  const map = new Map<string, ReturnType<typeof turnFileChanges>>();
+  for (const turn of props.turns) {
+    if (turn.role !== 'assistant') continue;
+    const changes = turnFileChanges(turn);
+    if (changes.length > 0) map.set(turn.id, changes);
+  }
+  return map;
+});
+
+function changesFor(turn: ChatTurn) {
+  return turnChanges.value.get(turn.id) ?? [];
+}
+
+function openTurnFileDiff(change: { path: string; toolId?: string }): void {
+  if (change.toolId) emit('openToolDiff', change.toolId);
+  else emit('openFile', { path: change.path });
+}
 </script>
 
 <template>
@@ -836,6 +863,15 @@ const turnSplits = computed(() => {
             <Icon v-else name="check" size="sm" />
           </button>
         </div>
+
+        <!-- "N files changed" summary for this turn (Edit/Write/MultiEdit). -->
+        <TurnFilesSummary
+          v-if="turn.id !== streamingTurnId && changesFor(turn).length > 0"
+          :changes="changesFor(turn)"
+          :cwd="workspaceCwd"
+          @open-diff="openTurnFileDiff($event)"
+          @open-file="emit('openFile', $event)"
+        />
       </div>
     </template>
 

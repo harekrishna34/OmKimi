@@ -43,4 +43,14 @@ export default {
     worked: '已工作 {duration}',
     workedUnknown: '工作过程',
   },
+  turnFiles: {
+    titleOne: '更改了 {number} 个文件',
+    titleOther: '更改了 {number} 个文件',
+    more: '还有 {number} 个文件',
+    moreOne: '还有 1 个文件',
+    showLess: '收起',
+    diffTitle: '本轮更改',
+    diffUnavailable: '该文件的更改无法逐行显示',
+    openFile: '打开文件',
+  },
 } as const;

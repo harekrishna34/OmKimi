@@ -4,27 +4,53 @@ import type { ToolCall } from '../../../types';
 import { normalizeToolName } from '../../../lib/toolMeta';
 import AgentTool from './AgentTool.vue';
 import AskUserTool from './AskUserTool.vue';
+import BashTool from './BashTool.vue';
 import EditTool from './EditTool.vue';
 import GenericTool from './GenericTool.vue';
+import GlobTool from './GlobTool.vue';
+import GrepTool from './GrepTool.vue';
 import MediaTool from './MediaTool.vue';
+import ReadTool from './ReadTool.vue';
 import SwarmTool from './SwarmTool.vue';
 import TodoTool from './TodoTool.vue';
+import WebFetchTool from './WebFetchTool.vue';
 
 type ToolRenderer = Component;
 
-/** Pick the renderer for a tool call. */
+/** Pick the renderer for a tool call. Mirrors the original bundle's routing
+ *  (Yke): media-first, then the per-kind renderers, then the generic fallback. */
 export function resolveToolRenderer(tool: ToolCall): ToolRenderer {
   if (tool.media && tool.status === 'ok') return MediaTool;
-  const name = normalizeToolName(tool.name);
-  if (name === 'edit' || name === 'write' || name === 'multi_edit') return EditTool;
-  // NOTE: normalizeToolName() folds `agent`/`subagent` into the canonical
-  // `task` kind (see lib/toolMeta.ts NAME_ALIASES), so the match must be on
-  // `task` — `agent` here would be dead code and route subagent calls to
-  // GenericTool, dropping the inline "Open" button for the detail panel.
-  if (name === 'task') return AgentTool;
-  if (name === 'agentswarm') return SwarmTool;
-  if (name === 'askuserquestion') return AskUserTool;
-  // TodoList renders as a structured checkmark card (not raw [done] text).
-  if (name === 'todo') return TodoTool;
-  return GenericTool;
+  switch (normalizeToolName(tool.name)) {
+    case 'bash':
+      return BashTool;
+    case 'read':
+      return ReadTool;
+    case 'edit':
+    case 'write':
+    case 'multi_edit':
+      return EditTool;
+    case 'grep':
+    case 'search':
+      return GrepTool;
+    case 'glob':
+    case 'ls':
+      return GlobTool;
+    case 'web_fetch':
+      return WebFetchTool;
+    case 'todo':
+      return TodoTool;
+    // NOTE: normalizeToolName() folds `agent`/`subagent` into the canonical
+    // `task` kind (see lib/toolMeta.ts NAME_ALIASES), so the match must be on
+    // `task` — `agent` here would be dead code and route subagent calls to
+    // GenericTool, dropping the inline "Open" button for the detail panel.
+    case 'task':
+      return AgentTool;
+    case 'agentswarm':
+      return SwarmTool;
+    case 'askuserquestion':
+      return AskUserTool;
+    default:
+      return GenericTool;
+  }
 }

@@ -28,8 +28,14 @@ import {
 import type { AppMessage, AppModel, AppTask } from '../src/api/types';
 import { resolveToolRenderer } from '../src/components/chat/tool-calls/toolRegistry';
 import AgentTool from '../src/components/chat/tool-calls/AgentTool.vue';
+import BashTool from '../src/components/chat/tool-calls/BashTool.vue';
 import EditTool from '../src/components/chat/tool-calls/EditTool.vue';
 import GenericTool from '../src/components/chat/tool-calls/GenericTool.vue';
+import GlobTool from '../src/components/chat/tool-calls/GlobTool.vue';
+import GrepTool from '../src/components/chat/tool-calls/GrepTool.vue';
+import ReadTool from '../src/components/chat/tool-calls/ReadTool.vue';
+import TodoTool from '../src/components/chat/tool-calls/TodoTool.vue';
+import WebFetchTool from '../src/components/chat/tool-calls/WebFetchTool.vue';
 import type { ToolCall } from '../src/types';
 import {
   clearTrace,
@@ -412,9 +418,20 @@ describe('resolveToolRenderer', () => {
     expect(resolveToolRenderer(tool('multi_edit'))).toBe(EditTool);
   });
 
+  it('routes read / bash / fetch / list kinds to their renderers', () => {
+    expect(resolveToolRenderer(tool('read'))).toBe(ReadTool);
+    expect(resolveToolRenderer(tool('bash'))).toBe(BashTool);
+    expect(resolveToolRenderer(tool('grep'))).toBe(GrepTool);
+    expect(resolveToolRenderer(tool('search'))).toBe(GrepTool);
+    expect(resolveToolRenderer(tool('glob'))).toBe(GlobTool);
+    expect(resolveToolRenderer(tool('ls'))).toBe(GlobTool);
+    expect(resolveToolRenderer(tool('web_fetch'))).toBe(WebFetchTool);
+    expect(resolveToolRenderer(tool('todo'))).toBe(TodoTool);
+  });
+
   it('falls back to the Generic renderer for unknown tools', () => {
-    expect(resolveToolRenderer(tool('bash'))).toBe(GenericTool);
-    expect(resolveToolRenderer(tool('read'))).toBe(GenericTool);
+    expect(resolveToolRenderer(tool('croncreate'))).toBe(GenericTool);
+    expect(resolveToolRenderer(tool('unknown-tool'))).toBe(GenericTool);
   });
 });
 

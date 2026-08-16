@@ -1,9 +1,14 @@
 <!-- apps/kimi-web/src/components/chat/tool-calls/GenericTool.vue -->
+<!-- Fallback tool row (ported from the original bundle's GenericTool, scope
+     data-v-ad4ad9c8). Renders through ToolDisclosure using the toolMeta
+     helpers: glyph in the leading slot, label + summary in the header, chip /
+     timing in the trailing slot, full argument + output block in the body. -->
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 import type { FilePreviewRequest, ToolCall, ToolMedia } from '../../../types';
 import { toolChip, toolGlyph, toolLabel, toolSummary } from '../../../lib/toolMeta';
-import ToolRow from '../ToolRow.vue';
+import ToolDisclosure from './ToolDisclosure.vue';
 import ToolOutputBlock from './ToolOutputBlock.vue';
 
 const props = withDefaults(
@@ -20,16 +25,12 @@ defineEmits<{
   openMedia: [media: ToolMedia];
   openFile: [target: FilePreviewRequest];
   openToolDiff: [id: string];
+  openAgent: [toolCallId: string];
 }>();
 
-const isRunningBash = computed(
-  () => props.tool.status === 'running' && /^bash$/i.test(props.tool.name),
-);
-const hasOutput = computed(() => !!props.tool.output && props.tool.output.length > 0);
-const canExpand = computed(() => hasOutput.value || isRunningBash.value);
-const open = ref(props.tool.defaultExpanded === true && canExpand.value);
+const { t } = useI18n();
 
-const status = computed<'running' | 'ok' | 'error'>(() => props.tool.status as 'running' | 'ok' | 'error');
+const status = computed(() => props.tool.status);
 const label = computed(() => toolLabel(props.tool.name));
 const glyph = computed(() => toolGlyph(props.tool.name));
 const summary = computed(() => toolSummary(props.tool.name, props.tool.arg));
@@ -43,51 +44,55 @@ const chip = computed(() =>
     status: props.tool.status,
   }),
 );
-
-function toggle(): void {
-  if (canExpand.value) open.value = !open.value;
-}
+const hasOutput = computed(() => !!props.tool.output && props.tool.output.length > 0);
+const expandable = computed(() => hasOutput.value || (!!summaryFull.value && summaryFull.value !== summary.value));
+const open = ref(props.tool.defaultExpanded === true && expandable.value);
 
 watch(
   () => [props.tool.defaultExpanded, props.tool.output?.length, props.tool.status, props.tool.name] as const,
   () => {
-    if (props.tool.defaultExpanded === true && canExpand.value) open.value = true;
+    if (props.tool.defaultExpanded === true && expandable.value) open.value = true;
   },
 );
 </script>
 
 <template>
-  <ToolRow
-    :status="status"
-    :icon="glyph"
-    :name="label"
-    :arg="!open ? summary : ''"
-    :time="tool.name !== 'bash' ? tool.timing : ''"
-    :open="open"
-    :expandable="canExpand"
-    :stacked="stackPosition !== 'single'"
-    :stack-position="stackPosition"
-    @toggle="toggle"
-  >
-    <template #trailing>
-      <span v-if="chip" class="chip">{{ chip }}</span>
+  <ToolDisclosure :status="status" :open="open" :expandable="expandable" @toggle="open = !open">
+    <template #leading>
+      <!-- Inline-SVG glyph string from the shared icon registry (toolGlyph). -->
+      <span class="gl" v-html="glyph" />
     </template>
-    <div v-if="summaryFull" class="bb-summary">{{ summaryFull }}</div>
-    <ToolOutputBlock :lines="tool.output" empty-text="Waiting for output…" />
-  </ToolRow>
+    <template #trailing>
+      <span v-if="chip" class="tl-chip">{{ chip }}</span>
+      <span v-else-if="tool.timing" class="tl-chip">{{ tool.timing }}</span>
+    </template>
+    <template #body>
+      <div v-if="summaryFull && summaryFull !== summary" class="arg-full">{{ summaryFull }}</div>
+      <ToolOutputBlock
+        :lines="tool.output"
+        :empty-text="status === 'running' ? t('tools.output.waiting') : t('tools.output.empty')"
+      />
+    </template>
+    <span class="tl-name">{{ label }}</span>
+    <span v-if="summary" class="tl-dim">{{ summary }}</span>
+  </ToolDisclosure>
 </template>
 
 <style scoped>
-.bb-summary {
-  color: var(--color-text);
-  border-bottom: 1px dashed var(--color-line);
-  padding-bottom: 6px;
-  margin-bottom: 6px;
-  word-break: break-all;
+/* Ported from the deployed bundle (scope data-v-ad4ad9c8). */
+.gl {
+  display: inline-flex;
+  align-items: center;
 }
-.chip {
+.arg-full {
+  font-family: var(--font-mono);
+  font-size: calc(var(--content-font-size) - 2px);
+  line-height: 1.6;
+  font-feature-settings: 'liga' 0, 'calt' 0;
+  font-variant-ligatures: none;
   color: var(--color-text-muted);
-  font-size: var(--text-xs);
-  flex: none;
+  white-space: pre-wrap;
+  word-break: break-all;
+  margin-bottom: var(--space-1);
 }
 </style>

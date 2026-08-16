@@ -32,9 +32,18 @@ export default {
   chip: {
     lines: '{count} 行',
     results: '{count} 结果',
+    files: '{count} 个文件',
     edited: '已编辑',
     created: '已创建',
     todos: '{count} 项',
+  },
+  disclosure: {
+    collapse: '收起工具',
+    expand: '展开工具',
+  },
+  output: {
+    waiting: '等待输出…',
+    empty: '无输出',
   },
   summary: {
     inScope: '{value} 在 {scope} 中',

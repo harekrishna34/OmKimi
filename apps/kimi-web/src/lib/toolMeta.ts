@@ -159,7 +159,7 @@ function isEmptyArg(arg: string, d: Record<string, unknown> | null): boolean {
 }
 
 /** Parse the JSON-stringified `arg` into a record, or null for plain strings. */
-function parseArg(arg: string): Record<string, unknown> | null {
+export function parseArg(arg: string): Record<string, unknown> | null {
   const s = arg.trim();
   if (!s.startsWith('{')) return null;
   try {
@@ -170,11 +170,11 @@ function parseArg(arg: string): Record<string, unknown> | null {
   }
 }
 
-function str(v: unknown): string | undefined {
+export function str(v: unknown): string | undefined {
   return typeof v === 'string' && v.length > 0 ? v : undefined;
 }
 
-function num(v: unknown): number | undefined {
+export function num(v: unknown): number | undefined {
   return typeof v === 'number' && Number.isFinite(v) ? v : undefined;
 }
 
@@ -190,7 +190,7 @@ function urlHost(url: string): string {
 }
 
 /** Take a tool input's file path, regardless of which key the tool used. */
-function filePath(d: Record<string, unknown>): string | undefined {
+export function filePath(d: Record<string, unknown>): string | undefined {
   return str(d.path) ?? str(d.file_path) ?? str(d.filePath) ?? str(d.filename);
 }
 
@@ -299,11 +299,6 @@ export function toolSummary(name: string, arg: string, full = false): string {
           str(d.description) ?? str(d.title) ?? str(d.prompt) ?? str(d.name) ?? str(d.subagent_type);
         if (label) return c(label);
         const items = Array.isArray(d.todos) ? d.todos : Array.isArray(d.items) ? d.items : undefined;
-        if (items) return c(t('tools.chip.todos', { count: items.length }));
-        return fallback();
-      }
-      case 'todo': {
-        const items = Array.isArray(d.todos) ? d.todos : undefined;
         if (items) return c(t('tools.chip.todos', { count: items.length }));
         return fallback();
       }

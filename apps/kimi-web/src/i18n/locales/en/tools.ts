@@ -32,9 +32,18 @@ export default {
   chip: {
     lines: '{count} lines',
     results: '{count} results',
+    files: '{count} files',
     edited: 'edited',
     created: 'created',
     todos: '{count} items',
+  },
+  disclosure: {
+    collapse: 'Collapse tool',
+    expand: 'Expand tool',
+  },
+  output: {
+    waiting: 'Waiting for output…',
+    empty: 'No output',
   },
   summary: {
     inScope: '{value} in {scope}',
