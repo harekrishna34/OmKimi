@@ -52,6 +52,8 @@ export default {
     running: '运行中',
     error: '有失败',
     done: '已完成',
+    ranOneWebSearch: '已运行 1 次网页搜索',
+    ranWebSearches: '已运行 {count} 次网页搜索',
   },
   ask: {
     dismissed: '已忽略',

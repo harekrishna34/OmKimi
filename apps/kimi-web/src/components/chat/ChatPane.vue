@@ -28,6 +28,7 @@ import {
   turnFinalText,
   turnToMarkdown,
 } from '../chatTurnRendering';
+import type { AssistantRenderBlock } from '../chatTurnRendering';
 
 const { t } = useI18n();
 const { confirm } = useConfirmDialog();
@@ -511,6 +512,45 @@ function isStreamingRenderBlock(turn: ChatTurn, block: { sourceIndex: number }):
   return block.sourceIndex === turnBlocks(turn).length - 1;
 }
 
+// Split an assistant turn into "work" blocks (thinking + tools) and the final
+// text response. The final text is the last text block; everything before it is
+// wrapped in the collapsible "Worked Xs" header.
+function splitAssistantBlocks(turn: ChatTurn): { work: AssistantRenderBlock[]; final: AssistantRenderBlock[] } {
+  const blocks = assistantRenderBlocks(turn);
+  const lastTextIndex = blocks.findLastIndex((b) => b.kind === 'text' && b.text);
+  if (lastTextIndex === -1) return { work: blocks, final: [] };
+  return {
+    work: blocks.slice(0, lastTextIndex),
+    final: blocks.slice(lastTextIndex),
+  };
+}
+
+const turnSplits = computed(() => {
+  const map = new Map<string, { work: AssistantRenderBlock[]; final: AssistantRenderBlock[] }>();
+  for (const turn of props.turns) {
+    map.set(turn.id, splitAssistantBlocks(turn));
+  }
+  return map;
+});
+
+const workOpen = ref<Record<string, boolean>>({});
+
+function isWorkOpen(turn: ChatTurn): boolean {
+  if (turn.id === streamingTurnId.value) return true;
+  return workOpen.value[turn.id] ?? true;
+}
+
+function toggleWork(turn: ChatTurn): void {
+  if (turn.id === streamingTurnId.value) return;
+  workOpen.value[turn.id] = !isWorkOpen(turn);
+}
+
+function workHeaderLabel(turn: ChatTurn): string {
+  if (turn.id === streamingTurnId.value) return 'Working…';
+  if (turn.durationMs !== undefined) return `Worked ${formatDuration(turn.durationMs)}`;
+  return 'Worked';
+}
+
 // NOTE: the turn-summary line ("已调用 N 个工具…") was removed in f9417af. If it
 // comes back, rebuild it from turnBlocks() with i18n strings — the old
 // implementation lives in git history at f9417af^.
@@ -633,29 +673,44 @@ function isStreamingRenderBlock(turn: ChatTurn, block: { sourceIndex: number }):
            a lightweight in-transcript notice rather than a user bubble. -->
       <CronNotice v-else-if="turn.role === 'cron'" :text="turn.text" :cron="turn.cron" :turn-id="turn.id" :created-at="turn.createdAt" />
 
-      <!-- Assistant turn → left-aligned, no name/role label. -->
+      <!-- Assistant turn → left-aligned, no name/role label.
+           Work blocks (thinking + tools) live inside a collapsible "Worked Xs"
+           header; the final text block renders outside so it stays visible. -->
       <div v-else class="a-msg turn-anchor" :data-turn-id="turn.id">
-        <template v-for="(blk, bi) in assistantRenderBlocks(turn)" :key="renderBlockKey(blk, bi)">
-          <ThinkingBlock v-if="blk.kind === 'thinking'" :text="blk.thinking" mobile :streaming="isStreamingRenderBlock(turn, blk)" @open="emit('openThinking', { turnId: turn.id, blockIndex: blk.sourceIndex })" />
-          <div v-else-if="blk.kind === 'text' && blk.text" class="msg"><Markdown :text="blk.text" :streaming="isStreamingRenderBlock(turn, blk)" :open-file="(target) => emit('openFile', target)" /></div>
-          <ToolGroup
-            v-else-if="blk.kind === 'tool-stack'"
-            :tools="blk.tools"
-            mobile
-            :tool-diff-panel="toolDiffPanel"
-            @open-media="emit('openMedia', $event)"
-            @open-file="emit('openFile', $event)"
-            @open-tool-diff="emit('openToolDiff', $event)"
-            @open-agent="emit('openAgent', $event)"
-          />
-          <ToolCall v-else-if="blk.kind === 'tool'" :tool="blk.tool" mobile :tool-diff-panel="toolDiffPanel" @open-media="emit('openMedia', $event)" @open-file="emit('openFile', $event)" @open-tool-diff="emit('openToolDiff', $event)" @open-agent="emit('openAgent', $event)" />
+        <template v-for="split in [turnSplits.get(turn.id)!]" :key="turn.id">
+          <div v-if="split.work.length > 0" class="work-wrap" :class="{ open: isWorkOpen(turn) }">
+            <button class="work-head" type="button" :aria-expanded="isWorkOpen(turn)" @click="toggleWork(turn)">
+              <span class="work-title">{{ workHeaderLabel(turn) }}</span>
+              <Icon class="work-car" name="chevron-right" size="sm" />
+            </button>
+            <div class="work-body" :class="{ open: isWorkOpen(turn) }" :inert="!isWorkOpen(turn)">
+              <div class="work-body-inner">
+                <template v-for="(blk, bi) in split.work" :key="renderBlockKey(blk, bi)">
+                  <ThinkingBlock v-if="blk.kind === 'thinking'" :text="blk.thinking" mobile :streaming="isStreamingRenderBlock(turn, blk)" />
+                  <div v-else-if="blk.kind === 'text' && blk.text" class="msg"><Markdown :text="blk.text" :streaming="isStreamingRenderBlock(turn, blk)" :open-file="(target) => emit('openFile', target)" /></div>
+                  <ToolGroup
+                    v-else-if="blk.kind === 'tool-stack'"
+                    :tools="blk.tools"
+                    mobile
+                    :tool-diff-panel="toolDiffPanel"
+                    @open-media="emit('openMedia', $event)"
+                    @open-file="emit('openFile', $event)"
+                    @open-tool-diff="emit('openToolDiff', $event)"
+                    @open-agent="emit('openAgent', $event)"
+                  />
+                  <ToolCall v-else-if="blk.kind === 'tool'" :tool="blk.tool" mobile :tool-diff-panel="toolDiffPanel" @open-media="emit('openMedia', $event)" @open-file="emit('openFile', $event)" @open-tool-diff="emit('openToolDiff', $event)" @open-agent="emit('openAgent', $event)" />
+                </template>
+              </div>
+            </div>
+          </div>
+
+          <template v-for="(blk, bi) in split.final" :key="`final-${renderBlockKey(blk, bi)}`">
+            <div v-if="blk.kind === 'text' && blk.text" class="msg"><Markdown :text="blk.text" :streaming="isStreamingRenderBlock(turn, blk)" :open-file="(target) => emit('openFile', target)" /></div>
+          </template>
         </template>
-        <div v-if="turn.id !== streamingTurnId && isAssistantRunEnd(ti) && (assistantRunFinalText(ti).trim().length > 0 || turn.durationMs !== undefined)" class="a-msg-ft">
-          <Tooltip :text="`${turn.durationMs} ms`">
-            <span v-if="turn.durationMs !== undefined" class="a-duration">{{ formatDuration(turn.durationMs) }}</span>
-          </Tooltip>
+
+        <div v-if="turn.id !== streamingTurnId && isAssistantRunEnd(ti) && assistantRunFinalText(ti).trim().length > 0" class="a-msg-ft">
           <button
-            v-if="assistantRunFinalText(ti).trim().length > 0"
             class="a-cpbtn"
             :aria-label="t('filePreview.copy')"
             @click="copyAssistantRun(ti)"
@@ -997,6 +1052,63 @@ function isStreamingRenderBlock(turn: ChatTurn, block: { sourceIndex: number }):
   line-height: 1;
 }
 
+/* Work wrapper: collapsible "Worked Xs" header around thinking + tools. */
+.work-wrap {
+  display: flex;
+  flex-direction: column;
+}
+.work-head {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  height: 28px;
+  padding: 0 8px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-text-muted);
+  font: var(--text-sm)/1 var(--font-ui);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+  user-select: none;
+  transition: color 0.12s ease, background-color 0.12s ease;
+}
+.work-head:hover {
+  color: var(--color-text);
+  background: var(--color-surface-sunken);
+}
+.work-head:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--color-accent-soft);
+}
+.work-title {
+  flex: none;
+}
+.work-car {
+  color: var(--color-text-faint);
+  flex: none;
+  transition: transform var(--duration-base) var(--ease-out);
+}
+.work-wrap.open .work-car {
+  transform: rotate(90deg);
+}
+.work-body {
+  display: grid;
+  grid-template-rows: minmax(0, 0fr);
+  overflow: hidden;
+  transition: grid-template-rows var(--duration-base) var(--ease-out);
+}
+.work-body.open {
+  grid-template-rows: minmax(0, 1fr);
+}
+.work-body-inner {
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
 /* Copy button — icon-only, shares the undo button's muted→hover style so the
    message-stream action buttons (copy / undo) all read as one family. */
 .a-cpbtn {
@@ -1057,7 +1169,16 @@ function isStreamingRenderBlock(turn: ChatTurn, block: { sourceIndex: number }):
 .a-msg > :deep(.agent-group),
 .a-msg > :deep(.box),
 .a-msg > :deep(.swarm-card),
-.a-msg > :deep(.media-tool) {
+.a-msg > :deep(.media-tool),
+.a-msg > .work-wrap + .msg,
+.a-msg :deep(.work-body-inner > .msg),
+.a-msg :deep(.work-body-inner > .think),
+.a-msg :deep(.work-body-inner > .tool-group),
+.a-msg :deep(.work-body-inner > .agent-card),
+.a-msg :deep(.work-body-inner > .agent-group),
+.a-msg :deep(.work-body-inner > .box),
+.a-msg :deep(.work-body-inner > .swarm-card),
+.a-msg :deep(.work-body-inner > .media-tool) {
   margin-top: var(--chat-block-gap);
 }
 .a-msg > .msg:first-child,
@@ -1067,7 +1188,15 @@ function isStreamingRenderBlock(turn: ChatTurn, block: { sourceIndex: number }):
 .a-msg > :deep(.agent-group:first-child),
 .a-msg > :deep(.box:first-child),
 .a-msg > :deep(.swarm-card:first-child),
-.a-msg > :deep(.media-tool:first-child) {
+.a-msg > :deep(.media-tool:first-child),
+.a-msg :deep(.work-body-inner > .msg:first-child),
+.a-msg :deep(.work-body-inner > .think:first-child),
+.a-msg :deep(.work-body-inner > .tool-group:first-child),
+.a-msg :deep(.work-body-inner > .agent-card:first-child),
+.a-msg :deep(.work-body-inner > .agent-group:first-child),
+.a-msg :deep(.work-body-inner > .box:first-child),
+.a-msg :deep(.work-body-inner > .swarm-card:first-child),
+.a-msg :deep(.work-body-inner > .media-tool:first-child) {
   margin-top: 0;
 }
 .a-msg :deep(code) {

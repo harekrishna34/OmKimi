@@ -52,6 +52,8 @@ export default {
     running: 'running',
     error: 'failed',
     done: 'done',
+    ranOneWebSearch: 'Ran 1 web search',
+    ranWebSearches: 'Ran {count} web searches',
   },
   ask: {
     dismissed: 'Dismissed',

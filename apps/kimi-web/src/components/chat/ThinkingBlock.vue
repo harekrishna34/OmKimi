@@ -1,152 +1,152 @@
 <!-- apps/kimi-web/src/components/chat/ThinkingBlock.vue -->
-<!-- 9e97773-style presentation: while this block is streaming it shows a live
-     5-line scrolling window; when the stream moves past it the window folds
-     into a one-paragraph teaser (the LAST paragraph of the thinking text).
-     There is NO inline expand any more — clicking anywhere on the block emits
-     `open`, and the parent shows the full text in the right-side panel. -->
+<!-- Inline expandable thinking block: header shows a lightbulb + "Thinking" +
+     chevron; body expands/collapses in place. While streaming the block stays
+     open and scrolls to the latest line. -->
 <script setup lang="ts">
-import { computed, onMounted, ref, watch, nextTick } from 'vue';
+import { computed, nextTick, onMounted, ref, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
+import Icon from '../ui/Icon.vue';
 
 const props = withDefaults(
   defineProps<{
     text: string;
     mobile?: boolean;
     streaming?: boolean;
-    foldable?: boolean;
   }>(),
-  { mobile: false, streaming: false, foldable: true },
+  { mobile: false, streaming: false },
 );
 
-const emit = defineEmits<{
-  /** Show the full thinking text (right-side panel — App's shared slot). */
-  open: [];
-}>();
-
-// Live window while streaming, teaser afterwards. The 0.25s grid transition
-// between the two states (fa8b305) plays on the class flip.
-const paragraphs = computed(() =>
-  props.text
-    .split(/\n{2,}/)
-    .filter((p) => p.trim().length > 0),
-);
-
-/** Single-paragraph thinking has nothing to fold — show it straight. */
-const isFoldable = computed(() => props.foldable && paragraphs.value.length > 1);
-const open = computed(() => props.streaming || !isFoldable.value);
-
-/** Last non-empty paragraph, shown as the collapsed teaser. */
-const teaser = computed(() => paragraphs.value.at(-1) ?? '');
-
+const { t } = useI18n();
+const open = ref(props.streaming);
 const bodyEl = ref<HTMLElement | null>(null);
 
-// On mount, a streaming block must land on its LATEST line. After a page refresh
-// mid-stream the whole thinking text is present at once with scrollTop 0, so the
-// "already at bottom?" check below would otherwise leave the live window parked
-// at the top. A static/historical block is left at its start (we don't pin it).
-onMounted(() => {
-  if (!props.streaming) return;
+function toggle(): void {
+  if (props.streaming) return;
+  open.value = !open.value;
+}
+
+const lightbulbIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-1 1.5-2.3 1.5-3.5A6 6 0 0 0 6 8c0 1.2.5 2.4 1.5 3.5.8.8 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg>`;
+
+function scrollToBottom(): void {
   const el = bodyEl.value;
   if (el) el.scrollTop = el.scrollHeight;
+}
+
+onMounted(() => {
+  if (props.streaming) scrollToBottom();
 });
 
 watch(
   () => props.text,
   () => {
-    const el = bodyEl.value;
-    if (!el) return;
-    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 24;
-    if (!atBottom) return;
-    void nextTick(() => {
-      if (bodyEl.value) bodyEl.value.scrollTop = bodyEl.value.scrollHeight;
-    });
+    if (props.streaming && open.value) {
+      void nextTick(scrollToBottom);
+    }
   },
-  { immediate: true },
 );
 </script>
 
 <template>
-  <div class="think" :class="{ mob: mobile }">
-    <!-- Foldable: live window above, last-paragraph teaser below; click opens
-         the full text in the right-side panel -->
-    <template v-if="isFoldable">
-      <div class="tc-wrap" :class="{ 'is-collapsed': !open }" @click="emit('open')">
-        <div class="tc-anim">
-          <pre ref="bodyEl" class="tc">{{ text }}</pre>
-        </div>
-        <div class="prev-anim">
-          <span class="prev">{{ teaser }}</span>
-        </div>
-      </div>
-    </template>
-    <!-- Single-paragraph or explicitly non-foldable: always show full content -->
-    <pre v-else ref="bodyEl" class="tc">{{ text }}</pre>
+  <div class="think" :class="{ mob: mobile, open, streaming }">
+    <button class="tb-head" type="button" :aria-expanded="open" @click="toggle">
+      <span class="tb-icon" v-html="lightbulbIcon" aria-hidden="true" />
+      <span class="tb-title">{{ t('thinking.panelTitle') }}</span>
+      <Icon class="tb-car" name="chevron-right" size="sm" />
+    </button>
+    <div class="tb-body" :class="{ open }" :inert="!open">
+      <pre ref="bodyEl" class="tc">{{ text }}</pre>
+    </div>
   </div>
 </template>
 
 <style scoped>
 .think {
+  display: flex;
+  flex-direction: column;
+}
+
+.tb-head {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  align-self: flex-start;
+  height: 28px;
+  padding: 0 8px;
   margin: 0;
-}
-
-.tc-wrap {
-  display: grid;
-  grid-template-rows: 1fr 0fr;
-  transition: grid-template-rows var(--duration-slow) var(--ease-out);
-  cursor: pointer;
-}
-.tc-wrap.is-collapsed {
-  grid-template-rows: 0fr 1fr;
-}
-.tc-anim,
-.prev-anim {
-  /* min-height: 0 is required for the 0fr/1fr grid collapse to actually shrink
-     below the tracks' content. Without it, an inner scroll container (`.tc`,
-     overflow-y: auto) contributes its content as the automatic minimum, so the
-     row keeps its streaming height and never collapses to the short teaser —
-     most visible on iOS Safari. */
-  overflow: hidden;
-  min-height: 0;
-}
-
-/* Hover hints clickability (opens the full text in the side panel) */
-.tc-wrap.is-collapsed:hover .prev {
-  color: var(--color-text);
-}
-.tc-wrap:not(.is-collapsed):hover .tc {
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
   color: var(--color-text-muted);
+  font: var(--text-sm)/1 var(--font-ui);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+  user-select: none;
+  transition: color 0.12s ease, background-color 0.12s ease;
+}
+.tb-head:hover {
+  color: var(--color-text);
+  background: var(--color-surface-sunken);
+}
+.tb-head:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--color-accent-soft);
 }
 
-.prev {
+.tb-icon {
+  display: inline-flex;
+  align-items: center;
   color: var(--color-text-faint);
-  font: var(--text-base)/var(--leading-relaxed) var(--font-ui);
-  font-weight: 425;
-  white-space: pre-wrap;
-  word-break: break-word;
-  display: block;
+  flex: none;
+}
+.tb-title {
+  flex: none;
+}
+.tb-car {
+  color: var(--color-text-faint);
+  flex: none;
+  transition: transform var(--duration-base) var(--ease-out);
+}
+.think.open .tb-car {
+  transform: rotate(90deg);
+}
+
+.tb-body {
+  display: grid;
+  grid-template-rows: minmax(0, 0fr);
+  overflow: hidden;
+  transition: grid-template-rows var(--duration-base) var(--ease-out);
+}
+.tb-body.open {
+  grid-template-rows: minmax(0, 1fr);
 }
 
 .tc {
+  min-height: 0;
+  overflow: hidden;
+  margin: 6px 0 0;
+  padding: 0;
   font: var(--text-base)/var(--leading-relaxed) var(--font-ui);
   font-weight: 425;
   color: var(--color-text-muted);
   white-space: pre-wrap;
   word-break: break-word;
-  margin: 0;
   max-height: calc(var(--leading-relaxed) * 1em * 5);
   overflow-y: auto;
 }
 
-/* ---- Mobile tweaks ---- */
-.mob {
-  margin: 0;
+/* Streaming: keep open, mute hover color, pin to bottom. */
+.think.streaming .tb-head {
+  cursor: default;
 }
+.think.streaming .tb-car {
+  animation: none;
+  transform: rotate(90deg);
+}
+
+/* Mobile tweaks */
 .mob .tc {
   color: var(--color-text-faint);
   line-height: var(--leading-normal);
   max-height: calc(var(--leading-normal) * 1em * 5);
-}
-.mob .prev {
-  color: var(--color-text-faint);
-  line-height: var(--leading-normal);
 }
 </style>

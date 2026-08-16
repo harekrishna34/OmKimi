@@ -6,6 +6,7 @@ import ToolCall from './ToolCall.vue';
 import { toolStackKey, toolStackPosition } from '../chatTurnRendering';
 import type { ToolStackItem } from '../chatTurnRendering';
 import type { FilePreviewRequest, ToolMedia } from '../../types';
+import { normalizeToolName } from '../../lib/toolMeta';
 import Icon from '../ui/Icon.vue';
 import StatusDot from '../ui/StatusDot.vue';
 
@@ -46,6 +47,24 @@ const statusLabel = computed(() => {
   }
 });
 
+const allSearch = computed(() =>
+  props.tools.length > 0 && props.tools.every((t) => normalizeToolName(t.tool.name) === 'search'),
+);
+
+const groupLabel = computed(() => {
+  const c = count.value;
+  if (allSearch.value) {
+    return c === 1 ? t('tools.group.ranOneWebSearch') : t('tools.group.ranWebSearches', c);
+  }
+  return t('tools.group.title', c);
+});
+
+const headIcon = computed(() => {
+  if (aggregateStatus.value === 'running') return 'list';
+  if (aggregateStatus.value === 'error') return 'close';
+  return 'check';
+});
+
 function toggle(): void {
   open.value = !open.value;
 }
@@ -63,9 +82,8 @@ function onHeadClick(): void {
 <template>
   <div class="tool-group" :class="{ open }">
     <button class="tool-group-head" ref="headEl" type="button" :aria-expanded="open" @click="onHeadClick">
-      <StatusDot :status="aggregateStatus" />
-      <Icon class="tg-ic" name="list" size="sm" />
-      <span class="tg-title">{{ t('tools.group.title', count) }}</span>
+      <Icon class="tg-status" :name="headIcon" size="sm" />
+      <span class="tg-title">{{ groupLabel }}</span>
       <span class="tg-meta">· {{ statusLabel }}</span>
       <Icon class="tg-car" name="chevron-right" size="sm" />
     </button>
@@ -120,6 +138,13 @@ function onHeadClick(): void {
 .tool-group-head:focus-visible {
   outline: none;
   box-shadow: inset 0 0 0 2px var(--color-accent-soft);
+}
+.tg-status {
+  flex: none;
+  color: var(--color-success);
+}
+.tool-group-head:hover .tg-status {
+  color: var(--color-success);
 }
 .tg-ic {
   color: var(--color-text-faint);
