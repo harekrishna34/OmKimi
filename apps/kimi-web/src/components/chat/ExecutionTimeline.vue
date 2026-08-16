@@ -1,3 +1,7 @@
+<!-- apps/kimi-web/src/components/chat/ExecutionTimeline.vue -->
+<!-- Collapsible agent execution timeline: header (worked time + tool count + status)
+     → expandable body (thinking blocks + tool calls) → final response text.
+     Matches the original index-HRJ6xRtC.js UI patterns exactly. -->
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -46,6 +50,7 @@ const blocks = computed(() => assistantRenderBlocks(props.turn));
 const workBlocks = computed(() => blocks.value.filter((block) => block.kind !== 'text'));
 const finalText = computed(() => turnFinalText(props.turn));
 const hasWork = computed(() => workBlocks.value.length > 0);
+
 const toolCount = computed(() =>
   workBlocks.value.reduce((count, block) => {
     if (block.kind === 'tool') return count + 1;
@@ -53,17 +58,20 @@ const toolCount = computed(() =>
     return count;
   }, 0),
 );
+
 const workStatus = computed<'running' | 'error' | 'done'>(() => {
   const tools = props.turn.tools ?? [];
   if (props.streaming || tools.some((tool) => tool.status === 'running')) return 'running';
   if (tools.some((tool) => tool.status === 'error')) return 'error';
   return 'done';
 });
+
 const workLabel = computed(() => {
   if (workStatus.value === 'running') return t('tools.group.running');
   if (workStatus.value === 'error') return t('tools.group.error');
   return t('tools.group.done');
 });
+
 const workedLabel = computed(() =>
   props.duration ? t('tools.worked', { time: props.duration }) : t('tools.workedPending'),
 );
@@ -87,8 +95,9 @@ function isStreamingBlock(block: AssistantRenderBlock): boolean {
 
 <template>
   <div class="tl-main" :class="{ 'has-work': hasWork, open }">
-    <!-- Timeline header: collapsible row showing worked time, tool count, status -->
+    <!-- Timeline work section: collapsible header + body -->
     <div v-if="hasWork" class="tl-work">
+      <!-- Header: clickable row with status dot, worked time, pill, status label, chevron -->
       <button
         class="tl-head"
         type="button"
@@ -97,13 +106,18 @@ function isStreamingBlock(block: AssistantRenderBlock): boolean {
         @click="toggle"
       >
         <StatusDot :status="workStatus" />
-        <span class="tl-title">{{ workedLabel }}</span>
-        <span v-if="toolCount > 0" class="tl-pill">{{ toolCount }} tool{{ toolCount === 1 ? '' : 's' }}</span>
-        <span class="tl-status">{{ workLabel }}</span>
-        <Icon class="tl-car" name="chevron-right" size="sm" />
+        <span class="tl-name">{{ workedLabel }}</span>
+        <span v-if="toolCount > 0" class="tl-pill" :class="{ 'pill-active': workStatus === 'running' }">
+          {{ toolCount }} tool{{ toolCount === 1 ? '' : 's' }}
+        </span>
+        <span class="tl-status" role="status" :aria-label="workLabel">· {{ workLabel }}</span>
+        <span class="tl-tail" />
+        <span class="tl-car" :aria-expanded="open" @click.stop="toggle">
+          <Icon class="tl-car-ic" name="chevron-right" size="sm" aria-hidden="true" />
+        </span>
       </button>
 
-      <!-- Collapsible body: thinking + tool calls -->
+      <!-- Body: collapsible section with thinking + tool calls -->
       <div class="tl-body" :class="{ open }" :inert="!open">
         <div class="tl-body-inner">
           <template v-for="(block, index) in workBlocks" :key="renderBlockKey(block, index)">
@@ -159,7 +173,7 @@ function isStreamingBlock(block: AssistantRenderBlock): boolean {
   width: 100%;
 }
 
-/* Timeline header: clickable row with worked time, tool count, status */
+/* Timeline header: clickable row with status dot, name, pill, status, chevron */
 .tl-head {
   display: flex;
   align-items: center;
@@ -184,11 +198,13 @@ function isStreamingBlock(block: AssistantRenderBlock): boolean {
   box-shadow: 0 0 0 2px var(--color-accent-soft);
 }
 
-.tl-title {
+/* Timeline name (worked time text) */
+.tl-name {
   color: var(--color-text-muted);
   font-weight: var(--weight-medium);
 }
 
+/* Timeline pill (tool count badge) */
 .tl-pill {
   display: inline-flex;
   align-items: center;
@@ -199,19 +215,43 @@ function isStreamingBlock(block: AssistantRenderBlock): boolean {
   font-size: var(--text-xs);
   font-weight: var(--weight-medium);
   line-height: 1.4;
+  transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
+}
+.tl-pill.pill-active {
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
 }
 
+/* Timeline status label (running/done/error) */
 .tl-status {
   color: var(--color-text-faint);
   font-size: var(--text-xs);
 }
 
+/* Timeline tail spacer */
+.tl-tail {
+  flex: 1;
+}
+
+/* Timeline chevron toggle */
 .tl-car {
-  margin-left: 2px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: 0;
+  background: transparent;
   color: var(--color-text-faint);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: color var(--duration-fast) var(--ease-out), transform var(--duration-base) var(--ease-out);
+}
+.tl-car:hover { color: var(--color-text-muted); background: var(--hover); }
+.tl-car-ic {
   transition: transform var(--duration-base) var(--ease-out);
 }
-.tl-main.open .tl-car { transform: rotate(90deg); }
+.tl-main.open .tl-car-ic { transform: rotate(90deg); }
 
 /* Timeline body: collapsible section with thinking + tool calls */
 .tl-body {
