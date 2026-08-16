@@ -60,6 +60,4 @@ export default {
     answered: 'Answered',
     more: '(+{count} more)',
   },
-  worked: 'Worked {time}',
-  workedPending: 'Working…',
 } as const;

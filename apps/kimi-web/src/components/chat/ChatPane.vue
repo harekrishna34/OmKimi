@@ -3,7 +3,10 @@
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import type { ChatTurn, ApprovalBlock, FilePreviewRequest, ToolMedia, QueuedPromptView, TurnAttachment } from '../../types';
-import ExecutionTimeline from './ExecutionTimeline.vue';
+import ToolCall from './ToolCall.vue';
+import ToolGroup from './ToolGroup.vue';
+import Markdown from './Markdown.vue';
+import ThinkingBlock from './ThinkingBlock.vue';
 import ActivityNotice from './ActivityNotice.vue';
 import CronNotice from './CronNotice.vue';
 import MessageTime from './MessageTime.vue';
@@ -17,8 +20,11 @@ import { useConfirmDialog } from '../../composables/useConfirmDialog';
 import { copyTextToClipboard } from '../../lib/clipboard';
 import { openFileAttachment } from '../../lib/openFileAttachment';
 import {
+  assistantRenderBlocks,
   formatDuration,
   formatTokens,
+  renderBlockKey,
+  turnBlocks,
   turnFinalText,
   turnToMarkdown,
 } from '../chatTurnRendering';
@@ -500,8 +506,13 @@ function onAttachmentClick(att: TurnAttachment): void {
   });
 }
 
+function isStreamingRenderBlock(turn: ChatTurn, block: { sourceIndex: number }): boolean {
+  if (turn.id !== streamingTurnId.value) return false;
+  return block.sourceIndex === turnBlocks(turn).length - 1;
+}
+
 // NOTE: the turn-summary line ("已调用 N 个工具…") was removed in f9417af. If it
-// comes back, rebuild it from the ordered turn blocks with i18n strings — the old
+// comes back, rebuild it from turnBlocks() with i18n strings — the old
 // implementation lives in git history at f9417af^.
 </script>
 
@@ -624,18 +635,21 @@ function onAttachmentClick(att: TurnAttachment): void {
 
       <!-- Assistant turn → left-aligned, no name/role label. -->
       <div v-else class="a-msg turn-anchor" :data-turn-id="turn.id">
-        <ExecutionTimeline
-          :turn="turn"
-          :streaming="turn.id === streamingTurnId"
-          mobile
-          :tool-diff-panel="toolDiffPanel"
-          :duration="turn.durationMs !== undefined ? formatDuration(turn.durationMs) : ''"
-          @open-thinking="emit('openThinking', { turnId: turn.id, blockIndex: $event })"
-          @open-media="emit('openMedia', $event)"
-          @open-file="emit('openFile', $event)"
-          @open-tool-diff="emit('openToolDiff', $event)"
-          @open-agent="emit('openAgent', $event)"
-        />
+        <template v-for="(blk, bi) in assistantRenderBlocks(turn)" :key="renderBlockKey(blk, bi)">
+          <ThinkingBlock v-if="blk.kind === 'thinking'" :text="blk.thinking" mobile :streaming="isStreamingRenderBlock(turn, blk)" @open="emit('openThinking', { turnId: turn.id, blockIndex: blk.sourceIndex })" />
+          <div v-else-if="blk.kind === 'text' && blk.text" class="msg"><Markdown :text="blk.text" :streaming="isStreamingRenderBlock(turn, blk)" :open-file="(target) => emit('openFile', target)" /></div>
+          <ToolGroup
+            v-else-if="blk.kind === 'tool-stack'"
+            :tools="blk.tools"
+            mobile
+            :tool-diff-panel="toolDiffPanel"
+            @open-media="emit('openMedia', $event)"
+            @open-file="emit('openFile', $event)"
+            @open-tool-diff="emit('openToolDiff', $event)"
+            @open-agent="emit('openAgent', $event)"
+          />
+          <ToolCall v-else-if="blk.kind === 'tool'" :tool="blk.tool" mobile :tool-diff-panel="toolDiffPanel" @open-media="emit('openMedia', $event)" @open-file="emit('openFile', $event)" @open-tool-diff="emit('openToolDiff', $event)" @open-agent="emit('openAgent', $event)" />
+        </template>
         <div v-if="turn.id !== streamingTurnId && isAssistantRunEnd(ti) && (assistantRunFinalText(ti).trim().length > 0 || turn.durationMs !== undefined)" class="a-msg-ft">
           <Tooltip :text="`${turn.durationMs} ms`">
             <span v-if="turn.durationMs !== undefined" class="a-duration">{{ formatDuration(turn.durationMs) }}</span>
