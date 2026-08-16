@@ -9,6 +9,7 @@ import { useKimiWebClient } from '../../composables/useKimiWebClient';
 import type { AppSession } from '../../api/types';
 import { useDialogFocus } from '../../composables/useDialogFocus';
 import LanguageSwitcher from './LanguageSwitcher.vue';
+import ToolsSection from './ToolsSection.vue';
 import { serverEndpointLabel } from '../../api/config';
 import { downloadTraceLog, isTraceEnabled } from '../../debug/trace';
 import type { Accent, ColorScheme } from '../../composables/useKimiWebClient';
@@ -69,13 +70,14 @@ const emit = defineEmits<{
   close: [];
 }>();
 
-type SettingsTab = 'general' | 'agent' | 'account' | 'advanced' | 'archived';
+type SettingsTab = 'general' | 'agent' | 'tools' | 'account' | 'advanced' | 'archived';
 
 const activeTab = ref<SettingsTab>('general');
 
 const tabs: { id: SettingsTab; labelKey: string }[] = [
   { id: 'general', labelKey: 'settings.tabs.general' },
   { id: 'agent', labelKey: 'settings.tabs.agent' },
+  { id: 'tools', labelKey: 'settings.tabs.tools' },
   { id: 'account', labelKey: 'settings.tabs.account' },
   { id: 'advanced', labelKey: 'settings.tabs.advanced' },
   { id: 'archived', labelKey: 'settings.tabs.archived' },
@@ -446,6 +448,11 @@ function archiveTime(iso: string): string {
               />
             </div>
           </section>
+        </section>
+
+        <!-- Tools: Web Search + MCP Servers -->
+        <section v-show="activeTab === 'tools'" class="panel">
+          <ToolsSection :config="config" :config-saving="configSaving" @update-config="emit('updateConfig', $event)" />
         </section>
 
         <!-- Account -->

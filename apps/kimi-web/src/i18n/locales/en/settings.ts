@@ -4,6 +4,7 @@ export default {
   tabs: {
     general: 'General',
     agent: 'Agent',
+    tools: 'Tools',
     account: 'Account',
     advanced: 'Advanced',
     archived: 'Archived',
@@ -70,4 +71,16 @@ export default {
   archivedLoadMore: 'Load more',
   archivedLoading: 'Loading…',
   archivedLoadingAll: 'Loading all archived sessions…',
+  // Tools
+  toolsTitle: 'Tools',
+  toolsDesc: 'Configure external tools and services for the agent.',
+  tavilyDesc: 'Configure the Tavily web search API so the agent can search the web.',
+  mcpServersTitle: 'MCP Servers',
+  mcpServersDesc: 'Model Context Protocol servers providing additional tools.',
+  mcpRefresh: 'Refresh',
+  mcpLoading: 'Loading…',
+  mcpRestart: 'Restart',
+  mcpRestarting: 'Restarting…',
+  mcpToolCount: '{count} tools',
+  mcpEmpty: 'No MCP servers configured.',
 };
