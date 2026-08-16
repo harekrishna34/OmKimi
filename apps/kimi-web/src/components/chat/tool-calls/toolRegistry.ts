@@ -8,6 +8,7 @@ import EditTool from './EditTool.vue';
 import GenericTool from './GenericTool.vue';
 import MediaTool from './MediaTool.vue';
 import SwarmTool from './SwarmTool.vue';
+import TodoTool from './TodoTool.vue';
 
 type ToolRenderer = Component;
 
@@ -23,5 +24,7 @@ export function resolveToolRenderer(tool: ToolCall): ToolRenderer {
   if (name === 'task') return AgentTool;
   if (name === 'agentswarm') return SwarmTool;
   if (name === 'askuserquestion') return AskUserTool;
+  // TodoList renders as a structured checkmark card (not raw [done] text).
+  if (name === 'todo') return TodoTool;
   return GenericTool;
 }

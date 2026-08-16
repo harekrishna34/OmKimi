@@ -63,6 +63,7 @@ export default {
       web_fetch: { done: '抓取了 {count} 个页面' },
       edit: { done: '编辑了 {count} 处' },
       write: { done: '写入了 {count} 个文件' },
+      todo: { done: '更新了 {count} 次待办列表' },
     },
     running: '运行中',
     error: '有失败',
@@ -84,6 +85,7 @@ export default {
       web_fetch: '正在抓取 {subject}',
       edit: '正在编辑 {subject}',
       write: '正在写入 {subject}',
+      todo: '正在更新待办 {subject}',
     },
   },
   ask: {

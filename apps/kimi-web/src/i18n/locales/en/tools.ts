@@ -63,6 +63,7 @@ export default {
       web_fetch: { done: 'Fetched {count} page | Fetched {count} pages' },
       edit: { done: 'Made {count} edit | Made {count} edits' },
       write: { done: 'Wrote {count} file | Wrote {count} files' },
+      todo: { done: 'Updated {count} todo list | Updated {count} todo lists' },
     },
     running: 'running',
     error: 'failed',
@@ -84,6 +85,7 @@ export default {
       web_fetch: 'Fetching {subject}',
       edit: 'Editing {subject}',
       write: 'Writing {subject}',
+      todo: 'Updating todo list {subject}',
     },
   },
   ask: {

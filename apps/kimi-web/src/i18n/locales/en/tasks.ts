@@ -15,6 +15,7 @@ export default {
   emptyBash: 'No bash tasks running',
   emptySubagent: 'No sub agent tasks running',
   emptyTodo: 'No todos yet',
+  todoProgress: '{done}/{total} done · {inProgress} in progress',
   openTab: 'Open the tasks tab',
   openDetail: 'Open',
   collapse: 'Collapse',

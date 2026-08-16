@@ -15,6 +15,7 @@ export default {
   emptyBash: '暂无后台 Bash 任务',
   emptySubagent: '暂无子 Agent 任务',
   emptyTodo: '暂无待办事项',
+  todoProgress: '{done}/{total} 已完成 · {inProgress} 进行中',
   openTab: '查看全部后台任务',
   openDetail: '查看',
   collapse: '折叠',

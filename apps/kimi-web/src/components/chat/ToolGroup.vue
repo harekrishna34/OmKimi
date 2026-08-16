@@ -138,7 +138,7 @@ const toolGlyphSvg = computed(() => {
 
 /** Tool kinds with a dedicated plural label; everything else falls back to
  *  the generic "{count} tool call(s)". */
-const TYPED_KINDS = new Set(['read', 'bash', 'grep', 'search', 'glob', 'ls', 'web_fetch', 'edit', 'write']);
+const TYPED_KINDS = new Set(['read', 'bash', 'grep', 'search', 'glob', 'ls', 'web_fetch', 'edit', 'write', 'todo']);
 
 function kindOf(name: string): string {
   const k = normalizeToolName(name);

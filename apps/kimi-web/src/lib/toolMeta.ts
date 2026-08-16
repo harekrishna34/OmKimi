@@ -302,6 +302,11 @@ export function toolSummary(name: string, arg: string, full = false): string {
         if (items) return c(t('tools.chip.todos', { count: items.length }));
         return fallback();
       }
+      case 'todo': {
+        const items = Array.isArray(d.todos) ? d.todos : undefined;
+        if (items) return c(t('tools.chip.todos', { count: items.length }));
+        return fallback();
+      }
       case 'creategoal': {
         if (full) return fallback();
         const objective = str(d.objective);
@@ -374,6 +379,20 @@ export function toolChip(tool: ToolChipInput): string {
       case 'search': {
         if (tool.output && tool.output.length > 0) {
           return t('tools.chip.results', { count: tool.output.length });
+        }
+        return '';
+      }
+      case 'todo': {
+        // Progress chip: done/total from the structured todos argument.
+        try {
+          const d = parseArg(tool.arg);
+          if (Array.isArray(d?.todos) && d.todos.length > 0) {
+            const total = d.todos.length;
+            const done = d.todos.filter((x: { status?: string }) => x.status === 'done').length;
+            return `${done}/${total}`;
+          }
+        } catch {
+          return '';
         }
         return '';
       }
