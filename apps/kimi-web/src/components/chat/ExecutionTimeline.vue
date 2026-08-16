@@ -1,7 +1,3 @@
-<!-- apps/kimi-web/src/components/chat/ExecutionTimeline.vue -->
-<!-- Collapsible agent execution timeline: header (worked time + tool count + status)
-     → expandable body (thinking blocks + tool calls) → final response text.
-     Matches the original index-HRJ6xRtC.js UI patterns exactly. -->
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -50,7 +46,6 @@ const blocks = computed(() => assistantRenderBlocks(props.turn));
 const workBlocks = computed(() => blocks.value.filter((block) => block.kind !== 'text'));
 const finalText = computed(() => turnFinalText(props.turn));
 const hasWork = computed(() => workBlocks.value.length > 0);
-
 const toolCount = computed(() =>
   workBlocks.value.reduce((count, block) => {
     if (block.kind === 'tool') return count + 1;
@@ -58,20 +53,17 @@ const toolCount = computed(() =>
     return count;
   }, 0),
 );
-
 const workStatus = computed<'running' | 'error' | 'done'>(() => {
   const tools = props.turn.tools ?? [];
   if (props.streaming || tools.some((tool) => tool.status === 'running')) return 'running';
   if (tools.some((tool) => tool.status === 'error')) return 'error';
   return 'done';
 });
-
 const workLabel = computed(() => {
   if (workStatus.value === 'running') return t('tools.group.running');
   if (workStatus.value === 'error') return t('tools.group.error');
   return t('tools.group.done');
 });
-
 const workedLabel = computed(() =>
   props.duration ? t('tools.worked', { time: props.duration }) : t('tools.workedPending'),
 );
@@ -94,32 +86,24 @@ function isStreamingBlock(block: AssistantRenderBlock): boolean {
 </script>
 
 <template>
-  <div class="tl-main" :class="{ 'has-work': hasWork, open }">
-    <!-- Timeline work section: collapsible header + body -->
-    <div v-if="hasWork" class="tl-work">
-      <!-- Header: clickable row with status dot, worked time, pill, status label, chevron -->
+  <div class="execution-timeline" :class="{ 'has-work': hasWork, open }">
+    <div v-if="hasWork" class="et-work">
       <button
-        class="tl-head"
+        class="et-head"
         type="button"
         :aria-expanded="open"
         :aria-label="workedLabel"
         @click="toggle"
       >
         <StatusDot :status="workStatus" />
-        <span class="tl-name">{{ workedLabel }}</span>
-        <span v-if="toolCount > 0" class="tl-pill" :class="{ 'pill-active': workStatus === 'running' }">
-          {{ toolCount }} tool{{ toolCount === 1 ? '' : 's' }}
-        </span>
-        <span class="tl-status" role="status" :aria-label="workLabel">· {{ workLabel }}</span>
-        <span class="tl-tail" />
-        <span class="tl-car" :aria-expanded="open" @click.stop="toggle">
-          <Icon class="tl-car-ic" name="chevron-right" size="sm" aria-hidden="true" />
-        </span>
+        <span class="et-title">{{ workedLabel }}</span>
+        <span v-if="toolCount > 0" class="et-count">· {{ toolCount }} tool{{ toolCount === 1 ? '' : 's' }}</span>
+        <span class="et-state">· {{ workLabel }}</span>
+        <Icon class="et-chevron" name="chevron-right" size="sm" />
       </button>
 
-      <!-- Body: collapsible section with thinking + tool calls -->
-      <div class="tl-body" :class="{ open }" :inert="!open">
-        <div class="tl-body-inner">
+      <div class="et-body" :class="{ open }" :inert="!open">
+        <div class="et-body-inner">
           <template v-for="(block, index) in workBlocks" :key="renderBlockKey(block, index)">
             <ThinkingBlock
               v-if="block.kind === 'thinking'"
@@ -153,28 +137,23 @@ function isStreamingBlock(block: AssistantRenderBlock): boolean {
       </div>
     </div>
 
-    <!-- Final assistant response text -->
-    <div v-if="finalText" class="tl-final msg">
+    <div v-if="finalText" class="et-final msg">
       <Markdown :text="finalText" :streaming="streaming" :open-file="(target) => emit('openFile', target)" />
     </div>
   </div>
 </template>
 
 <style scoped>
-/* Timeline main container */
-.tl-main {
+.execution-timeline {
   display: flex;
   flex-direction: column;
   width: 100%;
   color: var(--color-text);
 }
-
-.tl-work {
+.et-work {
   width: 100%;
 }
-
-/* Timeline header: clickable row with status dot, name, pill, status, chevron */
-.tl-head {
+.et-head {
   display: flex;
   align-items: center;
   gap: 7px;
@@ -189,84 +168,33 @@ function isStreamingBlock(block: AssistantRenderBlock): boolean {
   line-height: 1.35;
   text-align: left;
   cursor: pointer;
-  transition: color var(--duration-fast) var(--ease-out);
 }
-.tl-head:hover { color: var(--color-text); }
-.tl-head:focus-visible {
+.et-head:hover { color: var(--color-text); }
+.et-head:focus-visible {
   outline: none;
   border-radius: var(--radius-sm);
   box-shadow: 0 0 0 2px var(--color-accent-soft);
 }
-
-/* Timeline name (worked time text) */
-.tl-name {
-  color: var(--color-text-muted);
-  font-weight: var(--weight-medium);
-}
-
-/* Timeline pill (tool count badge) */
-.tl-pill {
-  display: inline-flex;
-  align-items: center;
-  padding: 1px 6px;
-  border-radius: var(--radius-sm);
-  background: var(--color-surface-sunken);
+.et-title { color: var(--color-text-muted); font-weight: var(--weight-medium); }
+.et-count, .et-state { color: var(--color-text-faint); }
+.et-chevron {
+  margin-left: 2px;
   color: var(--color-text-faint);
-  font-size: var(--text-xs);
-  font-weight: var(--weight-medium);
-  line-height: 1.4;
-  transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
-}
-.tl-pill.pill-active {
-  background: var(--color-accent-soft);
-  color: var(--color-accent);
-}
-
-/* Timeline status label (running/done/error) */
-.tl-status {
-  color: var(--color-text-faint);
-  font-size: var(--text-xs);
-}
-
-/* Timeline tail spacer */
-.tl-tail {
-  flex: 1;
-}
-
-/* Timeline chevron toggle */
-.tl-car {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 20px;
-  height: 20px;
-  border: 0;
-  background: transparent;
-  color: var(--color-text-faint);
-  cursor: pointer;
-  border-radius: var(--radius-sm);
-  transition: color var(--duration-fast) var(--ease-out), transform var(--duration-base) var(--ease-out);
-}
-.tl-car:hover { color: var(--color-text-muted); background: var(--hover); }
-.tl-car-ic {
   transition: transform var(--duration-base) var(--ease-out);
 }
-.tl-main.open .tl-car-ic { transform: rotate(90deg); }
-
-/* Timeline body: collapsible section with thinking + tool calls */
-.tl-body {
+.execution-timeline.open .et-chevron { transform: rotate(90deg); }
+.et-body {
   display: grid;
   grid-template-rows: minmax(0, 0fr);
   overflow: hidden;
   transition: grid-template-rows var(--duration-slow) var(--ease-out), opacity var(--duration-base) var(--ease-out);
   opacity: 0;
 }
-.tl-body.open {
+.et-body.open {
   grid-template-rows: minmax(0, 1fr);
   opacity: 1;
 }
-
-.tl-body-inner {
+.et-body-inner {
   min-height: 0;
   overflow: hidden;
   display: flex;
@@ -274,15 +202,13 @@ function isStreamingBlock(block: AssistantRenderBlock): boolean {
   gap: var(--chat-block-gap);
   padding: 2px 0 1px 18px;
 }
-
-/* Final assistant response text */
-.tl-final {
+.et-final {
   margin-top: var(--chat-block-gap);
   font-size: var(--ui-font-size);
   line-height: 1.6;
   color: var(--color-text);
   font-weight: 500;
 }
-.tl-final :deep(p) { margin: 0; }
-.tl-final :deep(p + p) { margin-top: 8px; }
+.et-final :deep(p) { margin: 0; }
+.et-final :deep(p + p) { margin-top: 8px; }
 </style>
