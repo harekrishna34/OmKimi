@@ -61,4 +61,5 @@ export default {
     more: '（还有 {count} 个）',
   },
   worked: '耗时 {time}',
+  workedPending: '处理中…',
 } as const;

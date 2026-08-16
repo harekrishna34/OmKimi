@@ -86,24 +86,26 @@ function isStreamingBlock(block: AssistantRenderBlock): boolean {
 </script>
 
 <template>
-  <div class="execution-timeline" :class="{ 'has-work': hasWork, open }">
-    <div v-if="hasWork" class="et-work">
+  <div class="tl-main" :class="{ 'has-work': hasWork, open }">
+    <!-- Timeline header: collapsible row showing worked time, tool count, status -->
+    <div v-if="hasWork" class="tl-work">
       <button
-        class="et-head"
+        class="tl-head"
         type="button"
         :aria-expanded="open"
         :aria-label="workedLabel"
         @click="toggle"
       >
         <StatusDot :status="workStatus" />
-        <span class="et-title">{{ workedLabel }}</span>
-        <span v-if="toolCount > 0" class="et-count">· {{ toolCount }} tool{{ toolCount === 1 ? '' : 's' }}</span>
-        <span class="et-state">· {{ workLabel }}</span>
-        <Icon class="et-chevron" name="chevron-right" size="sm" />
+        <span class="tl-title">{{ workedLabel }}</span>
+        <span v-if="toolCount > 0" class="tl-pill">{{ toolCount }} tool{{ toolCount === 1 ? '' : 's' }}</span>
+        <span class="tl-status">{{ workLabel }}</span>
+        <Icon class="tl-car" name="chevron-right" size="sm" />
       </button>
 
-      <div class="et-body" :class="{ open }" :inert="!open">
-        <div class="et-body-inner">
+      <!-- Collapsible body: thinking + tool calls -->
+      <div class="tl-body" :class="{ open }" :inert="!open">
+        <div class="tl-body-inner">
           <template v-for="(block, index) in workBlocks" :key="renderBlockKey(block, index)">
             <ThinkingBlock
               v-if="block.kind === 'thinking'"
@@ -137,23 +139,28 @@ function isStreamingBlock(block: AssistantRenderBlock): boolean {
       </div>
     </div>
 
-    <div v-if="finalText" class="et-final msg">
+    <!-- Final assistant response text -->
+    <div v-if="finalText" class="tl-final msg">
       <Markdown :text="finalText" :streaming="streaming" :open-file="(target) => emit('openFile', target)" />
     </div>
   </div>
 </template>
 
 <style scoped>
-.execution-timeline {
+/* Timeline main container */
+.tl-main {
   display: flex;
   flex-direction: column;
   width: 100%;
   color: var(--color-text);
 }
-.et-work {
+
+.tl-work {
   width: 100%;
 }
-.et-head {
+
+/* Timeline header: clickable row with worked time, tool count, status */
+.tl-head {
   display: flex;
   align-items: center;
   gap: 7px;
@@ -168,33 +175,58 @@ function isStreamingBlock(block: AssistantRenderBlock): boolean {
   line-height: 1.35;
   text-align: left;
   cursor: pointer;
+  transition: color var(--duration-fast) var(--ease-out);
 }
-.et-head:hover { color: var(--color-text); }
-.et-head:focus-visible {
+.tl-head:hover { color: var(--color-text); }
+.tl-head:focus-visible {
   outline: none;
   border-radius: var(--radius-sm);
   box-shadow: 0 0 0 2px var(--color-accent-soft);
 }
-.et-title { color: var(--color-text-muted); font-weight: var(--weight-medium); }
-.et-count, .et-state { color: var(--color-text-faint); }
-.et-chevron {
+
+.tl-title {
+  color: var(--color-text-muted);
+  font-weight: var(--weight-medium);
+}
+
+.tl-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-sunken);
+  color: var(--color-text-faint);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  line-height: 1.4;
+}
+
+.tl-status {
+  color: var(--color-text-faint);
+  font-size: var(--text-xs);
+}
+
+.tl-car {
   margin-left: 2px;
   color: var(--color-text-faint);
   transition: transform var(--duration-base) var(--ease-out);
 }
-.execution-timeline.open .et-chevron { transform: rotate(90deg); }
-.et-body {
+.tl-main.open .tl-car { transform: rotate(90deg); }
+
+/* Timeline body: collapsible section with thinking + tool calls */
+.tl-body {
   display: grid;
   grid-template-rows: minmax(0, 0fr);
   overflow: hidden;
   transition: grid-template-rows var(--duration-slow) var(--ease-out), opacity var(--duration-base) var(--ease-out);
   opacity: 0;
 }
-.et-body.open {
+.tl-body.open {
   grid-template-rows: minmax(0, 1fr);
   opacity: 1;
 }
-.et-body-inner {
+
+.tl-body-inner {
   min-height: 0;
   overflow: hidden;
   display: flex;
@@ -202,13 +234,15 @@ function isStreamingBlock(block: AssistantRenderBlock): boolean {
   gap: var(--chat-block-gap);
   padding: 2px 0 1px 18px;
 }
-.et-final {
+
+/* Final assistant response text */
+.tl-final {
   margin-top: var(--chat-block-gap);
   font-size: var(--ui-font-size);
   line-height: 1.6;
   color: var(--color-text);
   font-weight: 500;
 }
-.et-final :deep(p) { margin: 0; }
-.et-final :deep(p + p) { margin-top: 8px; }
+.tl-final :deep(p) { margin: 0; }
+.tl-final :deep(p + p) { margin-top: 8px; }
 </style>

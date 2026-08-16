@@ -61,4 +61,5 @@ export default {
     more: '(+{count} more)',
   },
   worked: 'Worked {time}',
+  workedPending: 'Working…',
 } as const;
