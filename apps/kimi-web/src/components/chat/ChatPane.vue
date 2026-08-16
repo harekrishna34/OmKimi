@@ -749,14 +749,6 @@ const turnSplits = computed(() => {
            stays open), and once settled a single "Worked Xs" header appears,
            collapsed by default. The visible tail (final text) renders outside. -->
       <div v-else class="a-msg turn-anchor" :data-turn-id="turn.id">
-        <!-- Knowledge recall indicator — shown above the response to the
-             newest user prompt when entries matched (Manus-style). -->
-        <KnowledgeBlock
-          v-if="knowledgeItems.length > 0 && isRecallAnchor(ti)"
-          :items="knowledgeItems"
-          :streaming="turn.id === streamingTurnId"
-          @edit-knowledge="(k) => emit('editKnowledge', k)"
-        />
         <template v-for="split in [turnSplits.get(turn.id)!]" :key="turn.id">
           <div
             v-if="split.folded.length > 0"
@@ -775,6 +767,14 @@ const turnSplits = computed(() => {
             </button>
             <div class="tf-body" :class="{ open: isFoldOpen(turn) }" :inert="!isFoldOpen(turn)">
               <div class="tf-body-inner">
+                <!-- Knowledge recall indicator — shown inside the Worked
+                     fold, ahead of the thinking/tool blocks (Manus-style). -->
+                <KnowledgeBlock
+                  v-if="knowledgeItems.length > 0 && isRecallAnchor(ti)"
+                  :items="knowledgeItems"
+                  :streaming="turn.id === streamingTurnId"
+                  @edit-knowledge="(k) => emit('editKnowledge', k)"
+                />
                 <template v-for="(blk, bi) in split.folded" :key="renderBlockKey(blk, bi)">
                   <ThinkingBlock
                     v-if="blk.kind === 'thinking'"
@@ -1299,7 +1299,8 @@ const turnSplits = computed(() => {
 .a-msg :deep(.tf-body-inner > .agent-group),
 .a-msg :deep(.tf-body-inner > .tool-line),
 .a-msg :deep(.tf-body-inner > .swarm-card),
-.a-msg :deep(.tf-body-inner > .media-tool) {
+.a-msg :deep(.tf-body-inner > .media-tool),
+.a-msg :deep(.tf-body-inner > .knowledge-block) {
   margin-top: var(--chat-block-gap);
 }
 .a-msg > .msg:first-child,
@@ -1321,7 +1322,8 @@ const turnSplits = computed(() => {
 .a-msg :deep(.turn-fold.streaming .tf-body-inner > .agent-group:first-child),
 .a-msg :deep(.turn-fold.streaming .tf-body-inner > .tool-line:first-child),
 .a-msg :deep(.turn-fold.streaming .tf-body-inner > .swarm-card:first-child),
-.a-msg :deep(.turn-fold.streaming .tf-body-inner > .media-tool:first-child) {
+.a-msg :deep(.turn-fold.streaming .tf-body-inner > .media-tool:first-child),
+.a-msg :deep(.turn-fold.streaming .tf-body-inner > .knowledge-block:first-child) {
   margin-top: 0;
 }
 .a-msg :deep(code) {
