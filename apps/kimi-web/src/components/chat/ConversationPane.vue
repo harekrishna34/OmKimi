@@ -7,6 +7,7 @@ import type { AppGoal, AppModel, AppSkill, QuestionResponse, ThinkingLevel } fro
 import type { FileItem } from './MentionMenu.vue';
 import type { PromptAttachment } from '../../composables/useKimiWebClient';
 import ChatPane from './ChatPane.vue';
+import KnowledgeEditDialog from './KnowledgeEditDialog.vue';
 import ChatHeader from './ChatHeader.vue';
 import Composer from './Composer.vue';
 import ChatDock from './ChatDock.vue';
@@ -16,6 +17,8 @@ import Spinner from '../ui/Spinner.vue';
 import Tooltip from '../ui/Tooltip.vue';
 import { getVisibleWorkspaces } from '../../lib/workspacePicker';
 import { safeRemove, STORAGE_KEYS } from '../../lib/storage';
+import { useKnowledge } from '../../composables/useKnowledge';
+import type { Knowledge } from '../../types';
 
 const { t } = useI18n();
 
@@ -187,6 +190,27 @@ const dockedComposerRef = ref<ComposerHandle | null>(null);
 const copyConversationCopied = ref(false);
 const goalExpandSignal = ref(0);
 let copyConversationCopiedTimer: ReturnType<typeof setTimeout> | null = null;
+
+// ---- Knowledge recall (Manus-style) ---------------------------------------
+// Matches saved knowledge entries against the latest user prompt and passes
+// them to ChatPane for the "Knowledge recalled (N)" indicator. Clicking an
+// entry opens the edit dialog.
+const { findRelevantKnowledge } = useKnowledge();
+
+const knowledgeEditTarget = ref<Knowledge | null>(null);
+const knowledgeEditVisible = ref(false);
+
+/** Knowledge entries relevant to the most recent user prompt. */
+const matchedKnowledge = computed<Knowledge[]>(() => {
+  const lastUser = [...props.turns].reverse().find((t) => t.role === 'user');
+  if (!lastUser?.text.trim()) return [];
+  return findRelevantKnowledge(lastUser.text);
+});
+
+function openKnowledgeEdit(knowledge: Knowledge): void {
+  knowledgeEditTarget.value = knowledge;
+  knowledgeEditVisible.value = true;
+}
 
 /** Load text (and any attachments) into whichever composer is currently mounted
     (docked vs the empty-session composer). Used by App for "edit & resend the
@@ -1424,6 +1448,7 @@ defineExpose({ loadComposerForEdit, focusComposer });
               :is-following="following"
               :tool-diff-panel="true"
               :queued="queued"
+              :knowledge-items="matchedKnowledge"
               @open-file="emit('openFile', $event)"
               @open-media="emit('openMedia', $event)"
               @copy-conversation-copied="handleCopyConversationCopied"
@@ -1436,6 +1461,7 @@ defineExpose({ loadComposerForEdit, focusComposer });
               @unqueue="emit('unqueue', $event)"
               @edit-queued="handleEditQueued"
               @reorder-queue="handleReorderQueue"
+              @edit-knowledge="openKnowledgeEdit"
             />
           </template>
         </div>
@@ -1525,6 +1551,15 @@ defineExpose({ loadComposerForEdit, focusComposer });
         <span class="abort-toast-text">{{ t('conversation.manuallyAborted') }}</span>
       </div>
     </Transition>
+
+    <!-- Knowledge edit dialog — opened from the recalled-knowledge indicator. -->
+    <KnowledgeEditDialog
+      :visible="knowledgeEditVisible"
+      :knowledge="knowledgeEditTarget"
+      @close="knowledgeEditVisible = false"
+      @save="knowledgeEditVisible = false"
+      @delete="knowledgeEditVisible = false"
+    />
   </section>
 </template>
 
