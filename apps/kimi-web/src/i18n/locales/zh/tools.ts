@@ -60,4 +60,5 @@ export default {
     answered: '已回答',
     more: '（还有 {count} 个）',
   },
+  worked: '耗时 {time}',
 } as const;

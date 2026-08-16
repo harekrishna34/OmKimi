@@ -7,6 +7,7 @@ import ToolCall from './ToolCall.vue';
 import ToolGroup from './ToolGroup.vue';
 import Markdown from './Markdown.vue';
 import ThinkingBlock from './ThinkingBlock.vue';
+import ExecutionTimeline from './ExecutionTimeline.vue';
 import ActivityNotice from './ActivityNotice.vue';
 import CronNotice from './CronNotice.vue';
 import MessageTime from './MessageTime.vue';
@@ -633,29 +634,21 @@ function isStreamingRenderBlock(turn: ChatTurn, block: { sourceIndex: number }):
            a lightweight in-transcript notice rather than a user bubble. -->
       <CronNotice v-else-if="turn.role === 'cron'" :text="turn.text" :cron="turn.cron" :turn-id="turn.id" :created-at="turn.createdAt" />
 
-      <!-- Assistant turn → left-aligned, no name/role label. -->
+      <!-- Assistant turn → Collapsible Agent Activity Timeline -->
       <div v-else class="a-msg turn-anchor" :data-turn-id="turn.id">
-        <template v-for="(blk, bi) in assistantRenderBlocks(turn)" :key="renderBlockKey(blk, bi)">
-          <ThinkingBlock v-if="blk.kind === 'thinking'" :text="blk.thinking" mobile :streaming="isStreamingRenderBlock(turn, blk)" @open="emit('openThinking', { turnId: turn.id, blockIndex: blk.sourceIndex })" />
-          <div v-else-if="blk.kind === 'text' && blk.text" class="msg"><Markdown :text="blk.text" :streaming="isStreamingRenderBlock(turn, blk)" :open-file="(target) => emit('openFile', target)" /></div>
-          <ToolGroup
-            v-else-if="blk.kind === 'tool-stack'"
-            :tools="blk.tools"
-            mobile
-            :tool-diff-panel="toolDiffPanel"
-            @open-media="emit('openMedia', $event)"
-            @open-file="emit('openFile', $event)"
-            @open-tool-diff="emit('openToolDiff', $event)"
-            @open-agent="emit('openAgent', $event)"
-          />
-          <ToolCall v-else-if="blk.kind === 'tool'" :tool="blk.tool" mobile :tool-diff-panel="toolDiffPanel" @open-media="emit('openMedia', $event)" @open-file="emit('openFile', $event)" @open-tool-diff="emit('openToolDiff', $event)" @open-agent="emit('openAgent', $event)" />
-        </template>
-        <div v-if="turn.id !== streamingTurnId && isAssistantRunEnd(ti) && (assistantRunFinalText(ti).trim().length > 0 || turn.durationMs !== undefined)" class="a-msg-ft">
-          <Tooltip :text="`${turn.durationMs} ms`">
-            <span v-if="turn.durationMs !== undefined" class="a-duration">{{ formatDuration(turn.durationMs) }}</span>
-          </Tooltip>
+        <ExecutionTimeline
+          :turn="turn"
+          mobile
+          :tool-diff-panel="toolDiffPanel"
+          :streaming="turn.id === streamingTurnId"
+          @open-media="emit('openMedia', $event)"
+          @open-file="emit('openFile', $event)"
+          @open-tool-diff="emit('openToolDiff', $event)"
+          @open-agent="emit('openAgent', $event)"
+          @open-thinking="emit('openThinking', $event)"
+        />
+        <div v-if="turn.id !== streamingTurnId && isAssistantRunEnd(ti) && assistantRunFinalText(ti).trim().length > 0" class="a-msg-ft">
           <button
-            v-if="assistantRunFinalText(ti).trim().length > 0"
             class="a-cpbtn"
             :aria-label="t('filePreview.copy')"
             @click="copyAssistantRun(ti)"
