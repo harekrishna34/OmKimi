@@ -687,17 +687,18 @@ function workHeaderLabel(turn: ChatTurn): string {
       <CronNotice v-else-if="turn.role === 'cron'" :text="turn.text" :cron="turn.cron" :turn-id="turn.id" :created-at="turn.createdAt" />
 
       <!-- Assistant turn → left-aligned, no name/role label.
-           Work blocks (thinking + tools) live inside a collapsible "Worked Xs"
-           header; the final text block renders outside so it stays visible. -->
+           Work blocks (thinking + tools + intermediate text) live inside a
+           collapsible .turn-fold "Worked Xs" header; the final text block renders
+           outside so it stays visible. -->
       <div v-else class="a-msg turn-anchor" :data-turn-id="turn.id">
         <template v-for="split in [turnSplits.get(turn.id)!]" :key="turn.id">
-          <div v-if="split.work.length > 0" class="work-wrap" :class="{ open: isWorkOpen(turn) }">
-            <button class="work-head" type="button" :aria-expanded="isWorkOpen(turn)" @click="toggleWork(turn)">
-              <span class="work-title">{{ workHeaderLabel(turn) }}</span>
-              <Icon class="work-car" name="chevron-right" size="sm" />
+          <div v-if="split.work.length > 0" class="turn-fold" :class="{ open: isWorkOpen(turn), streaming: turn.id === streamingTurnId }">
+            <button class="tf-head" type="button" :aria-expanded="isWorkOpen(turn)" @click="toggleWork(turn)">
+              <span class="tf-sum">{{ workHeaderLabel(turn) }}</span>
+              <Icon class="tf-car" name="chevron-right" size="sm" />
             </button>
-            <div class="work-body" :class="{ open: isWorkOpen(turn) }" :inert="!isWorkOpen(turn)">
-              <div class="work-body-inner">
+            <div class="tf-body" :class="{ open: isWorkOpen(turn) }" :inert="!isWorkOpen(turn)">
+              <div class="tf-body-inner">
                 <template v-for="(blk, bi) in split.work" :key="renderBlockKey(blk, bi)">
                   <ThinkingBlock v-if="blk.kind === 'thinking'" :text="blk.thinking" mobile :streaming="isStreamingRenderBlock(turn, blk)" />
                   <div v-else-if="blk.kind === 'text' && blk.text" class="msg"><Markdown :text="blk.text" :streaming="isStreamingRenderBlock(turn, blk)" :open-file="(target) => emit('openFile', target)" /></div>
@@ -1065,55 +1066,61 @@ function workHeaderLabel(turn: ChatTurn): string {
   line-height: 1;
 }
 
-/* Work wrapper: collapsible "Worked Xs" header around thinking + tools. */
-.work-wrap {
+/* Turn fold: collapsible "Worked Xs" header around thinking + tools. */
+.turn-fold {
   display: flex;
   flex-direction: column;
 }
-.work-head {
-  display: inline-flex;
+.tf-head {
+  display: flex;
   align-items: center;
-  gap: 6px;
-  align-self: flex-start;
-  height: 28px;
-  padding: 0;
+  gap: var(--space-1);
+  width: 100%;
+  padding: var(--space-2) 0;
   border: none;
-  border-radius: 0;
+  border-radius: var(--radius-sm);
   background: transparent;
-  color: var(--color-text-muted);
-  font: var(--text-sm)/1 var(--font-ui);
-  font-weight: var(--weight-medium);
+  color: var(--color-text-faint);
+  font-family: var(--font-ui);
+  font-size: var(--text-sm);
+  line-height: 1;
+  text-align: left;
   cursor: pointer;
   user-select: none;
+  transition: color var(--duration-base) var(--ease-out);
 }
-.work-head:hover {
+.tf-head:hover {
   color: var(--color-text);
 }
-.work-head:focus-visible {
+.tf-head:focus-visible {
   outline: none;
   box-shadow: inset 0 0 0 2px var(--color-accent-soft);
 }
-.work-title {
-  flex: none;
+.tf-sum {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: var(--weight-regular);
 }
-.work-car {
+.tf-car {
   color: var(--color-text-faint);
   flex: none;
   transition: transform var(--duration-base) var(--ease-out);
 }
-.work-wrap.open .work-car {
+.turn-fold.open .tf-car {
   transform: rotate(90deg);
 }
-.work-body {
+.tf-body {
   display: grid;
   grid-template-rows: minmax(0, 0fr);
   overflow: hidden;
   transition: grid-template-rows var(--duration-base) var(--ease-out);
 }
-.work-body.open {
+.tf-body.open {
   grid-template-rows: minmax(0, 1fr);
 }
-.work-body-inner {
+.tf-body-inner {
   min-height: 0;
   overflow: hidden;
   display: flex;
@@ -1175,39 +1182,39 @@ function workHeaderLabel(turn: ChatTurn): string {
 /* ChatPane owns block spacing; child components own only their internal layout. */
 .a-msg > .msg,
 .a-msg > :deep(.think),
-.a-msg > :deep(.tool-group),
+.a-msg > :deep(.activity-run),
 .a-msg > :deep(.agent-card),
 .a-msg > :deep(.agent-group),
-.a-msg > :deep(.box),
+.a-msg > :deep(.tool-line),
 .a-msg > :deep(.swarm-card),
 .a-msg > :deep(.media-tool),
-.a-msg > .work-wrap + .msg,
-.a-msg :deep(.work-body-inner > .msg),
-.a-msg :deep(.work-body-inner > .think),
-.a-msg :deep(.work-body-inner > .tool-group),
-.a-msg :deep(.work-body-inner > .agent-card),
-.a-msg :deep(.work-body-inner > .agent-group),
-.a-msg :deep(.work-body-inner > .box),
-.a-msg :deep(.work-body-inner > .swarm-card),
-.a-msg :deep(.work-body-inner > .media-tool) {
+.a-msg > .turn-fold + .msg,
+.a-msg :deep(.tf-body-inner > .msg),
+.a-msg :deep(.tf-body-inner > .think),
+.a-msg :deep(.tf-body-inner > .activity-run),
+.a-msg :deep(.tf-body-inner > .agent-card),
+.a-msg :deep(.tf-body-inner > .agent-group),
+.a-msg :deep(.tf-body-inner > .tool-line),
+.a-msg :deep(.tf-body-inner > .swarm-card),
+.a-msg :deep(.tf-body-inner > .media-tool) {
   margin-top: var(--chat-block-gap);
 }
 .a-msg > .msg:first-child,
 .a-msg > :deep(.think:first-child),
-.a-msg > :deep(.tool-group:first-child),
+.a-msg > :deep(.activity-run:first-child),
 .a-msg > :deep(.agent-card:first-child),
 .a-msg > :deep(.agent-group:first-child),
-.a-msg > :deep(.box:first-child),
+.a-msg > :deep(.tool-line:first-child),
 .a-msg > :deep(.swarm-card:first-child),
 .a-msg > :deep(.media-tool:first-child),
-.a-msg :deep(.work-body-inner > .msg:first-child),
-.a-msg :deep(.work-body-inner > .think:first-child),
-.a-msg :deep(.work-body-inner > .tool-group:first-child),
-.a-msg :deep(.work-body-inner > .agent-card:first-child),
-.a-msg :deep(.work-body-inner > .agent-group:first-child),
-.a-msg :deep(.work-body-inner > .box:first-child),
-.a-msg :deep(.work-body-inner > .swarm-card:first-child),
-.a-msg :deep(.work-body-inner > .media-tool:first-child) {
+.a-msg :deep(.tf-body-inner > .msg:first-child),
+.a-msg :deep(.tf-body-inner > .think:first-child),
+.a-msg :deep(.tf-body-inner > .activity-run:first-child),
+.a-msg :deep(.tf-body-inner > .agent-card:first-child),
+.a-msg :deep(.tf-body-inner > .agent-group:first-child),
+.a-msg :deep(.tf-body-inner > .tool-line:first-child),
+.a-msg :deep(.tf-body-inner > .swarm-card:first-child),
+.a-msg :deep(.tf-body-inner > .media-tool:first-child) {
   margin-top: 0;
 }
 .a-msg :deep(code) {

@@ -1,4 +1,6 @@
 <!-- apps/kimi-web/src/components/chat/ToolRow.vue -->
+<!-- Borderless tool row matching the original Railway UI:
+     .tool-line > .tl-head (icon + main + tail) + .tl-body (grid collapse). -->
 <script setup lang="ts">
 import { inject, nextTick, ref } from 'vue';
 import Icon from '../ui/Icon.vue';
@@ -43,38 +45,40 @@ function onHeadClick(): void {
 
 <template>
   <div
-    class="box"
+    class="tool-line"
     :class="{
       open,
-      stacked,
+      expandable,
       err: status === 'error',
       'stack-first': stackPosition === 'first',
       'stack-middle': stackPosition === 'middle',
       'stack-last': stackPosition === 'last',
     }"
   >
-    <div class="bh" ref="bhEl" @click="onHeadClick">
-      <span v-if="icon" class="gl" v-html="icon" aria-hidden="true" />
-      <span class="bh-text">
-        <span class="a">{{ name }}</span>
+    <div class="tl-head" ref="bhEl" :class="{ clickable: expandable }" @click="onHeadClick">
+      <span v-if="icon" class="tl-ic" v-html="icon" aria-hidden="true" />
+      <span class="tl-main">
+        <span class="tl-name">{{ name }}</span>
         <Tooltip :text="arg">
-          <span v-if="arg" class="p">{{ arg }}</span>
+          <span v-if="arg" class="tl-dim">{{ arg }}</span>
         </Tooltip>
       </span>
-      <span class="rt">
-        <span class="status" :class="status" role="status" :aria-label="status">
+      <span class="tl-tail">
+        <span class="tl-status" :class="status" role="status" :aria-label="status">
           <Icon v-if="status === 'ok'" name="check" size="sm" />
           <Icon v-else-if="status === 'error'" name="close" size="sm" />
           <StatusDot v-else-if="status === 'suspended'" status="suspended" />
           <StatusDot v-else status="running" />
         </span>
         <slot name="trailing" />
-        <span v-if="time" class="tm">{{ time }}</span>
+        <span v-if="time" class="tl-time">{{ time }}</span>
+        <button v-if="expandable" class="tl-car" type="button" :aria-label="open ? 'Collapse' : 'Expand'">
+          <Icon class="tl-car-ic" :name="open ? 'chevron-down' : 'chevron-right'" size="sm" />
+        </button>
       </span>
-      <Icon v-if="expandable" class="car" :name="open ? 'chevron-down' : 'chevron-right'" size="sm" />
     </div>
-    <div class="bb" :class="{ open }" :inert="!open">
-      <div class="bb-pad">
+    <div class="tl-body" :class="{ open }" :inert="!open">
+      <div class="tl-body-inner">
         <slot />
       </div>
     </div>
@@ -82,135 +86,145 @@ function onHeadClick(): void {
 </template>
 
 <style scoped>
-.box {
+.tool-line {
   margin: 0;
-  overflow: hidden;
-}
-.box.err {
-  background: transparent;
 }
 
-/* Stacked calls: rows are flat with a small gap. */
-.box.stacked {
-  border: none;
-  border-radius: 0;
-}
-.box.stacked .bh {
-  border-radius: 0;
-}
-.box.stack-middle,
-.box.stack-last {
-  border-top: none;
-  margin-top: 4px;
-}
-
-.bh {
+.tl-head {
   display: flex;
   align-items: center;
-  gap: 8px;
-  min-height: 30px;
-  padding: 0;
+  gap: var(--space-1);
+  width: 100%;
+  padding: var(--space-1) 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text);
+  font-family: var(--font-ui);
+  font-size: var(--text-sm);
+  line-height: 1;
+  text-align: left;
+}
+.tl-head.clickable {
   cursor: pointer;
-  font: var(--text-sm) var(--font-mono);
+  user-select: none;
+}
+.tl-head.clickable:hover {
   color: var(--color-text);
 }
-.bh:hover {
-  color: var(--color-text);
-}
-.box.err .bh {
-  background: transparent;
-}
-.box.err .bh:hover {
-  background: transparent;
+.tl-head.clickable:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--color-accent-soft);
 }
 
-.gl {
+.tl-ic {
   display: inline-flex;
   align-items: center;
-  color: var(--color-text-faint);
+  justify-content: flex-start;
   flex: none;
+  color: var(--color-text-faint);
 }
-.bh-text {
-  display: flex;
-  align-items: baseline;
-  gap: inherit;
+
+.tl-main {
   flex: 1;
   min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
 }
-.a {
-  color: var(--color-text);
-  font-weight: var(--weight-medium);
+
+.tl-name {
+  font-weight: var(--weight-regular);
+  color: var(--color-text-muted);
   flex: none;
 }
-.p {
+.tl-dim {
   color: var(--color-text-muted);
-  font-size: var(--text-xs);
+  line-height: var(--leading-tight);
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  flex: 1;
-  min-width: 0;
 }
-.rt {
+
+.tl-tail {
   margin-left: auto;
-  color: var(--color-text-muted);
-  font-size: var(--text-xs);
   display: flex;
   align-items: center;
-  gap: 6px;
-  flex: none;
-}
-.tm {
-  color: var(--color-text-faint);
-}
-:slotted(.chip) {
-  color: var(--color-text-muted);
-  font-family: var(--font-ui);
-  font-size: var(--text-xs);
+  gap: var(--space-1);
   flex: none;
 }
 
-/* Status indicator at the right edge of the row: done = green ✓, error = red ✗,
-   running = pulsing accent dot. */
-.status {
+.tl-status {
   display: inline-flex;
   align-items: center;
   flex: none;
 }
-.status.ok {
+.tl-status.ok {
   color: var(--color-success);
 }
-.status.error {
+.tl-status.error {
   color: var(--color-danger);
 }
 
-/* Expanded detail: sunken panel under the row. Opens downward / collapses upward
-   via a `grid-template-rows` transition (0fr ↔ 1fr), which animates smoothly in
-   every modern browser — unlike `height: auto`, which only interpolates in
-   Chromium (via `interpolate-size`) and snaps everywhere else. The inner
-   `.bb-pad` needs `min-height: 0` + `overflow: hidden` so the 0fr track can
-   collapse fully. */
-.bb {
+.tl-time {
+  color: var(--color-text-faint);
+  font-size: var(--text-xs);
+  flex: none;
+}
+
+.tl-car {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: center;
+  width: 16px;
+  height: 16px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-faint);
+  cursor: pointer;
+  flex: none;
+  padding: 0;
+}
+.tl-car:hover {
+  color: var(--color-text);
+}
+.tl-car:focus-visible {
+  outline: none;
+  box-shadow: var(--p-focus-ring);
+}
+.tl-car-ic {
+  transition: transform var(--duration-base) var(--ease-out);
+}
+.tool-line.open .tl-car-ic {
+  transform: rotate(90deg);
+}
+
+.tl-body {
   display: grid;
   grid-template-rows: minmax(0, 0fr);
   overflow: hidden;
   transition: grid-template-rows var(--duration-base) var(--ease-out);
 }
-.bb.open {
+.tl-body.open {
   grid-template-rows: minmax(0, 1fr);
 }
-.bb-pad {
+.tl-body-inner {
   min-height: 0;
   overflow: hidden;
-  padding: var(--space-2) 0 var(--space-3);
-  color: var(--color-text);
-  font: var(--text-sm)/1.65 var(--font-mono);
-  white-space: pre-wrap;
-  word-break: break-word;
+  padding: 2px var(--space-2) var(--space-1) 0;
 }
 
-/* Mobile bubble layout: no left gutter indent, softer corners. */
-.box.mob {
+/* Stacked calls: rows are flat with a small gap. */
+.tool-line.stack-middle,
+.tool-line.stack-last {
+  margin-top: 4px;
+}
+
+/* Mobile bubble layout: no left gutter indent. */
+.tool-line.mob {
   margin: 0;
 }
 </style>
