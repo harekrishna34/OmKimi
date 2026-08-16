@@ -70,6 +70,7 @@ export interface AgentProfileContext {
   readonly skills?: string;
   readonly skillActive?: boolean;
   readonly pluginSections?: string;
+  readonly knowledge?: string;
   readonly productName?: string;
   readonly replyStyleGuide?: string;
   readonly [key: string]: unknown;

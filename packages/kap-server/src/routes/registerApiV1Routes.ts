@@ -45,6 +45,7 @@ import { registerToolsRoutes } from './tools';
 import { registerTranscriptRoutes } from './transcript';
 import { registerWorkspaceFsRoutes } from './workspaceFs';
 import { registerWorkspacesRoutes } from './workspaces';
+import { registerKnowledgeRoutes } from './knowledge';
 
 interface ApiV1AppHost {
   register(
@@ -152,6 +153,10 @@ export async function registerApiV1Routes(
       );
       registerWorkspacesRoutes(
         apiV1 as unknown as Parameters<typeof registerWorkspacesRoutes>[0],
+        core,
+      );
+      registerKnowledgeRoutes(
+        apiV1 as unknown as Parameters<typeof registerKnowledgeRoutes>[0],
         core,
       );
       registerWorkspaceFsRoutes(

@@ -274,6 +274,8 @@ export * from '#/workspace/workspaceAgentProfileLoader/explicitAgentProfileLoade
 export * from '#/workspace/workspaceAgentProfileLoader/explicitAgentProfileLoaderService';
 export * from '#/workspace/workspaceInstructions/workspaceInstructions';
 export * from '#/workspace/workspaceInstructions/workspaceInstructionsService';
+export * from '#/workspace/workspaceKnowledge/workspaceKnowledge';
+export * from '#/workspace/workspaceKnowledge/workspaceKnowledgeService';
 export * from '#/agent/permissionGate/permissionGate';
 export * from '#/agent/permissionGate/permissionGateService';
 export * from '#/agent/toolApproval/toolApproval';
@@ -638,6 +640,8 @@ export * from '#/session/todo/sessionTodo';
 export * from '#/session/todo/sessionTodoService';
 export * from '#/agent/tools/todo-list/todo-list';
 import '#/agent/tools/todo-list/todoListTool';
+export * from '#/agent/tools/knowledge/knowledge';
+import '#/agent/tools/knowledge/knowledgeTool';
 export * from '#/tool/toolContract';
 export * from '#/agent/toolExecutor/toolHooks';
 export * from '#/agent/toolExecutor/toolExecutor';

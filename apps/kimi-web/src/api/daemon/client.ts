@@ -7,6 +7,7 @@ import { traceKeyEvent } from '../../debug/trace';
 import type {
   AppConfig,
   AppGoal,
+  AppKnowledge,
   AppMessage,
   AppMessageRole,
   AppModel,
@@ -27,6 +28,8 @@ import type {
   KimiEventConnection,
   KimiEventHandlers,
   KimiWebApi,
+  KnowledgeCreateInput,
+  KnowledgeUpdateInput,
   OAuthLoginStartResult,
   Page,
   PageRequest,
@@ -84,6 +87,18 @@ import type {
   WireWorkspace,
   WireLogoutResult,
 } from './wire';
+
+/** Wire shape of a workspace knowledge entry (snake_case, from /workspaces/{id}/knowledge). */
+export interface WireKnowledgeEntry {
+  id: string;
+  name: string;
+  use_when: string;
+  content: string;
+  tags?: string[];
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+}
 import { DaemonEventSocket } from './ws';
 
 function safeExportFileName(contentDisposition: string | undefined, fallback: string): string {
@@ -885,6 +900,75 @@ export class DaemonKimiWebApi implements KimiWebApi {
       description: s.description,
       source: s.source,
     }));
+  }
+
+  // -------------------------------------------------------------------------
+  // Workspace knowledge store
+  // -------------------------------------------------------------------------
+
+  private static toAppKnowledge(raw: WireKnowledgeEntry): AppKnowledge {
+    return {
+      id: raw.id,
+      name: raw.name,
+      useWhen: raw.use_when,
+      content: raw.content,
+      tags: raw.tags !== undefined ? [...raw.tags] : undefined,
+      active: raw.active,
+      createdAt: raw.created_at,
+      updatedAt: raw.updated_at,
+    };
+  }
+
+  async listKnowledge(workspaceId: string): Promise<AppKnowledge[]> {
+    const data = await this.http.get<{ items: WireKnowledgeEntry[] }>(
+      `/workspaces/${encodeURIComponent(workspaceId)}/knowledge`,
+    );
+    return (data.items ?? []).map(DaemonKimiWebApi.toAppKnowledge);
+  }
+
+  async createKnowledge(
+    workspaceId: string,
+    input: KnowledgeCreateInput,
+  ): Promise<AppKnowledge> {
+    const data = await this.http.post<WireKnowledgeEntry>(
+      `/workspaces/${encodeURIComponent(workspaceId)}/knowledge`,
+      {
+        name: input.name,
+        use_when: input.useWhen,
+        content: input.content,
+        tags: input.tags,
+        active: input.active,
+      },
+    );
+    return DaemonKimiWebApi.toAppKnowledge(data);
+  }
+
+  async updateKnowledge(
+    workspaceId: string,
+    knowledgeId: string,
+    input: KnowledgeUpdateInput,
+  ): Promise<AppKnowledge> {
+    const data = await this.http.patch<WireKnowledgeEntry>(
+      `/workspaces/${encodeURIComponent(workspaceId)}/knowledge/${encodeURIComponent(knowledgeId)}`,
+      {
+        name: input.name,
+        use_when: input.useWhen,
+        content: input.content,
+        tags: input.tags,
+        active: input.active,
+      },
+    );
+    return DaemonKimiWebApi.toAppKnowledge(data);
+  }
+
+  async deleteKnowledge(
+    workspaceId: string,
+    knowledgeId: string,
+  ): Promise<{ deleted: true }> {
+    const data = await this.http.delete<{ deleted: true }>(
+      `/workspaces/${encodeURIComponent(workspaceId)}/knowledge/${encodeURIComponent(knowledgeId)}`,
+    );
+    return { deleted: data.deleted };
   }
 
   async activateSkill(

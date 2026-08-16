@@ -131,6 +131,8 @@ import { IPluginService } from '#/app/plugin/plugin';
 import type { ResolvedAgentProfile, SystemPromptContext } from '#/agent/profile/profile';
 import { IAgentStateService } from '#/agent/state/agentState';
 import { IAgentAgentsMdReminderService } from '#/agent/agentsMdReminder/agentsMdReminder';
+import { IWorkspaceKnowledgeService } from '#/workspace/workspaceKnowledge/workspaceKnowledge';
+import { ref, type LiveRef } from '#/_base/di/instantiation';
 
 import { ITelemetryService } from '#/app/telemetry/telemetry';
 import { IAgentTelemetryContextService } from '#/app/telemetry/agentTelemetryContext';
@@ -266,6 +268,7 @@ export class AgentProfileService extends Disposable implements IAgentProfileServ
     @IPluginService private readonly plugins: IPluginService,
     @IAgentIdentity private readonly identity: IAgentIdentity,
     @IAgentAgentsMdReminderService private readonly agentsMdReminder: IAgentAgentsMdReminderService,
+    @ref(IWorkspaceKnowledgeService) private readonly knowledge: LiveRef<IWorkspaceKnowledgeService>,
   ) {
     super();
     this.states.register(profileActiveToolNamesOverlayKey);
@@ -952,6 +955,7 @@ export class AgentProfileService extends Disposable implements IAgentProfileServ
     );
     const skills = await this.resolveSkillListing();
     const pluginSections = await this.resolvePluginSections();
+    const knowledge = await this.resolveKnowledgeBlock();
     const now = this.clock.now();
     const timeZone = this.clock.timeZone();
     return {
@@ -964,6 +968,7 @@ export class AgentProfileService extends Disposable implements IAgentProfileServ
       timeZone,
       skills,
       pluginSections,
+      knowledge,
       skillActive: this.isToolActiveForProfile(profile, 'Skill'),
       productName: (await this.identity.resolved()).displayName,
       replyStyleGuide: this.bootstrap.args.replyStyleGuide,
@@ -1005,6 +1010,16 @@ export class AgentProfileService extends Disposable implements IAgentProfileServ
       // empty listing for the agent's lifetime.
       this.frozenSkillListing = listing;
       return listing;
+    } catch {
+      return '';
+    }
+  }
+
+  private async resolveKnowledgeBlock(): Promise<string> {
+    const knowledge = this.knowledge.current;
+    if (knowledge === undefined) return '';
+    try {
+      return await knowledge.getSystemPromptBlock();
     } catch {
       return '';
     }

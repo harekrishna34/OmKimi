@@ -98,6 +98,7 @@ export function systemPromptVars(
   const skillActive = context.skillActive ?? options.skillActive;
   const skills = skillActive ? (context.skills ?? '') : '';
   const pluginSections = context.pluginSections ?? '';
+  const knowledge = context.knowledge ?? '';
   const additionalDirsInfo = context.additionalDirsInfo ?? '';
   return {
     role_additional: '',
@@ -118,6 +119,9 @@ export function systemPromptVars(
     skills,
     skills_section:
       skills.length > 0 ? `\n\n# Skills\n\n${SKILLS_SECTION_PROSE}\n\n${skills}\n\n` : '',
+    knowledge,
+    knowledge_section:
+      knowledge.length > 0 ? `\n\n${knowledge}\n\n` : '',
     plugin_sections:
       pluginSections.length > 0
         ? `\n\n# Plugin Instructions\n\n${PLUGIN_SECTIONS_PROSE}\n\n${pluginSections}\n\n`

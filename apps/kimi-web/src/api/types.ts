@@ -687,6 +687,36 @@ export interface AppSkill {
   source: string;
 }
 
+/** Durable knowledge entry served by the workspace knowledge store. */
+export interface AppKnowledge {
+  id: string;
+  name: string;
+  useWhen: string;
+  content: string;
+  tags?: string[];
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Payload for creating a knowledge entry. */
+export interface KnowledgeCreateInput {
+  name: string;
+  useWhen: string;
+  content: string;
+  tags?: string[];
+  active?: boolean;
+}
+
+/** Payload for updating a knowledge entry (at least one field). */
+export interface KnowledgeUpdateInput {
+  name?: string;
+  useWhen?: string;
+  content?: string;
+  tags?: string[];
+  active?: boolean;
+}
+
 // ---------------------------------------------------------------------------
 // KimiWebApi — the app-facing interface
 // ---------------------------------------------------------------------------
@@ -767,6 +797,12 @@ export interface KimiWebApi {
   deleteWorkspace(id: string): Promise<void>;
   browseFs(path?: string): Promise<FsBrowseResult>;
   getFsHome(): Promise<{ home: string; recentRoots: string[] }>;
+
+  // Workspace knowledge store (durable preferences the agent recalls).
+  listKnowledge(workspaceId: string): Promise<AppKnowledge[]>;
+  createKnowledge(workspaceId: string, input: KnowledgeCreateInput): Promise<AppKnowledge>;
+  updateKnowledge(workspaceId: string, knowledgeId: string, input: KnowledgeUpdateInput): Promise<AppKnowledge>;
+  deleteKnowledge(workspaceId: string, knowledgeId: string): Promise<{ deleted: true }>;
 
   // PRESUMED — not in current daemon docs; isolated in adapter, swap when backend defines them.
   listModels(): Promise<AppModel[]>;

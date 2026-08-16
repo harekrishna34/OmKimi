@@ -1,6 +1,7 @@
 // apps/kimi-web/src/composables/useKnowledge.ts
 import { ref, computed } from 'vue';
 import type { Knowledge, KnowledgeFormData, KnowledgeRecallEvent, KnowledgeState } from '../types';
+import { getKimiWebApi } from '../api';
 
 // Global state (singleton across app)
 const state = ref<KnowledgeState>({
@@ -8,13 +9,20 @@ const state = ref<KnowledgeState>({
   recalls: [],
 });
 
+// Workspace bound for server sync — set by the app shell when the active
+// workspace changes. While bound, mutations mirror to the daemon's workspace
+// knowledge store (which the agent reads for its system prompt) and new
+// agent-written entries are pulled on bind.
+const boundWorkspaceId = ref<string | null>(null);
+
 /**
  * Composable for managing the Knowledge System.
  * 
  * Provides:
  * - CRUD operations for knowledge entries
  * - Knowledge recall events for conversations
- * - Persistence to localStorage
+ * - localStorage persistence + optional server sync per workspace
+ * - Adaptive auto-learning from user messages
  */
 export function useKnowledge() {
   // Load from localStorage on init
@@ -43,6 +51,95 @@ export function useKnowledge() {
 
   // Initialize on first use
   loadFromStorage();
+
+  // ---- Server sync ---------------------------------------------------------
+
+  function toKnowledgeInput(entry: Knowledge): {
+    name: string;
+    useWhen: string;
+    content: string;
+    tags?: string[];
+    active?: boolean;
+  } {
+    return {
+      name: entry.name,
+      useWhen: entry.useWhen,
+      content: entry.content,
+      tags: entry.tags,
+      active: entry.active,
+    };
+  }
+
+  function reconcileId(oldId: string, newId: string): void {
+    const index = state.value.entries.findIndex((e) => e.id === oldId);
+    if (index === -1) return;
+    state.value.entries[index] = { ...state.value.entries[index]!, id: newId };
+    saveToStorage();
+  }
+
+  /** Fire-and-forget mirror of a local create to the bound workspace store. */
+  function pushCreate(entry: Knowledge): void {
+    const wid = boundWorkspaceId.value;
+    if (wid === null) return;
+    getKimiWebApi()
+      .createKnowledge(wid, toKnowledgeInput(entry))
+      .then((remote) => {
+        if (remote.id !== entry.id) reconcileId(entry.id, remote.id);
+      })
+      .catch(() => {/* server unreachable — local cache stays authoritative */});
+  }
+
+  /** Fire-and-forget mirror of a local update to the bound workspace store. */
+  function pushUpdate(entry: Knowledge): void {
+    const wid = boundWorkspaceId.value;
+    if (wid === null) return;
+    getKimiWebApi()
+      .updateKnowledge(wid, entry.id, toKnowledgeInput(entry))
+      .catch(() => {/* server unreachable — local cache stays authoritative */});
+  }
+
+  /** Fire-and-forget mirror of a local delete to the bound workspace store. */
+  function pushDelete(id: string): void {
+    const wid = boundWorkspaceId.value;
+    if (wid === null) return;
+    getKimiWebApi()
+      .deleteKnowledge(wid, id)
+      .catch(() => {/* server unreachable — local cache stays authoritative */});
+  }
+
+  /**
+   * Bind the knowledge store to a workspace: pull the daemon's entries
+   * (agent-written ones included) into the local cache — server wins for
+   * matching ids — and push local-only entries up so both sides converge.
+   * Pass null to unbind (local cache keeps working on its own).
+   */
+  async function bindWorkspace(workspaceId: string | null): Promise<void> {
+    boundWorkspaceId.value = workspaceId;
+    if (workspaceId === null) return;
+    try {
+      const remote = await getKimiWebApi().listKnowledge(workspaceId);
+      const remoteIds = new Set(remote.map((r) => r.id));
+      const local = state.value.entries;
+      const localOnly = local.filter((e) => !remoteIds.has(e.id));
+      state.value.entries = [
+        ...remote.map((r) => ({
+          id: r.id,
+          name: r.name,
+          useWhen: r.useWhen,
+          content: r.content,
+          tags: r.tags,
+          active: r.active,
+          createdAt: r.createdAt,
+          updatedAt: r.updatedAt,
+        })),
+        ...localOnly,
+      ];
+      saveToStorage();
+      for (const entry of localOnly) pushCreate(entry);
+    } catch {
+      // Server unreachable — keep the local cache as-is.
+    }
+  }
 
   // ---- Computed ----
 
@@ -74,6 +171,7 @@ export function useKnowledge() {
     };
     state.value.entries.push(knowledge);
     saveToStorage();
+    pushCreate(knowledge);
     return knowledge;
   }
 
@@ -93,6 +191,7 @@ export function useKnowledge() {
     };
     state.value.entries[index] = updated;
     saveToStorage();
+    pushUpdate(updated);
     return updated;
   }
 
@@ -102,6 +201,7 @@ export function useKnowledge() {
     if (index === -1) return false;
     state.value.entries.splice(index, 1);
     saveToStorage();
+    pushDelete(id);
     return true;
   }
 
@@ -112,6 +212,7 @@ export function useKnowledge() {
     entry.active = !entry.active;
     entry.updatedAt = new Date().toISOString();
     saveToStorage();
+    pushUpdate(entry);
     return entry;
   }
 
@@ -302,6 +403,9 @@ export function useKnowledge() {
 
     // Adaptive auto-learning
     autoLearnFromPrompt,
+
+    // Server sync
+    bindWorkspace,
 
     // Recalls
     recordRecall,

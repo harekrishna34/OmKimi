@@ -28,6 +28,7 @@ import DebugPanel from './debug/DebugPanel.vue';
 import { isTraceEnabled } from './debug/trace';
 import { useKimiWebClient } from './composables/useKimiWebClient';
 import { useConfirmDialog } from './composables/useConfirmDialog';
+import { useKnowledge } from './composables/useKnowledge';
 import type { PromptAttachment } from './composables/useKimiWebClient';
 import type { TurnAttachment } from './types';
 import { useAuthGate } from './composables/useAuthGate';
@@ -59,6 +60,18 @@ const authRequired = ref(false);
 let offAuthRequired: (() => void) | null = null;
 
 const client = useKimiWebClient();
+const { bindWorkspace: bindKnowledgeWorkspace } = useKnowledge();
+
+// Keep the knowledge store synced with the active workspace: the daemon's
+// store (which the agent reads for its system prompt and writes through the
+// Knowledge tool) is pulled on switch, and local-only entries are pushed up.
+watch(
+  () => client.activeWorkspaceId.value,
+  (workspaceId) => {
+    void bindKnowledgeWorkspace(workspaceId);
+  },
+  { immediate: true },
+);
 // When the server runs with `--dangerous-bypass-auth`, `/meta` advertises it
 // and we skip the token prompt entirely — there is no credential to enter.
 const showServerAuth = computed(

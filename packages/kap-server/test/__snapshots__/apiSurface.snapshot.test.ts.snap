@@ -37,6 +37,10 @@ exports[`API surface snapshot > matches the documented v2 route table and meta e
       "/api/v1/workspaces/{workspace_id}",
     ],
     [
+      "DELETE",
+      "/api/v1/workspaces/{workspace_id}/knowledge/{knowledge_id}",
+    ],
+    [
       "GET",
       "/api/v1/auth",
     ],
@@ -238,6 +242,10 @@ exports[`API surface snapshot > matches the documented v2 route table and meta e
     ],
     [
       "GET",
+      "/api/v1/workspaces/{workspace_id}/knowledge",
+    ],
+    [
+      "GET",
       "/api/v1/workspaces/{workspace_id}/skills",
     ],
     [
@@ -259,6 +267,10 @@ exports[`API surface snapshot > matches the documented v2 route table and meta e
     [
       "PATCH",
       "/api/v1/workspaces/{workspace_id}",
+    ],
+    [
+      "PATCH",
+      "/api/v1/workspaces/{workspace_id}/knowledge/{knowledge_id}",
     ],
     [
       "POST",
@@ -403,6 +415,10 @@ exports[`API surface snapshot > matches the documented v2 route table and meta e
     [
       "POST",
       "/api/v1/workspaces",
+    ],
+    [
+      "POST",
+      "/api/v1/workspaces/{workspace_id}/knowledge",
     ],
     [
       "POST",
