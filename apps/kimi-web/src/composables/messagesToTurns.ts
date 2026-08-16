@@ -372,6 +372,9 @@ interface Group {
   id: string;
   /** Known promptId for this assistant group, if the protocol supplied one. */
   promptId: string | undefined;
+  /** ISO timestamp of the first message folded into this group — the turn's
+      best-effort start time (feeds the live "Worked Xs" tick). */
+  createdAt: string | undefined;
   textParts: string[];
   thinkingParts: string[];
   tools: ToolCall[];
@@ -631,11 +634,12 @@ export function messagesToTurns(
       approval: g.approval,
       approvalId: g.approvalId,
       durationMs: g.durationMs,
+      createdAt: g.createdAt,
     });
   }
 
-  function absorbContent(g: Group, content: AppMessage['content']): void {
-    for (const c of content) {
+  function absorbContent(g: Group, msg: AppMessage): void {
+    for (const c of msg.content) {
       if (c.type === 'text') {
         if (c.text) {
           g.textParts.push(c.text);
@@ -649,10 +653,12 @@ export function messagesToTurns(
         if (c.thinking) {
           g.thinkingParts.push(c.thinking);
           // Ordered block too: thinking renders WHERE it happened in the turn,
-          // merging consecutive segments (same rule as text blocks above).
+          // merging consecutive segments (same rule as text blocks above). The
+          // daemon does not report per-part timestamps, so the block's start
+          // time is the containing message's createdAt (best effort).
           const last = g.blocks.at(-1);
           if (last && last.kind === 'thinking') last.thinking += '\n' + c.thinking;
-          else g.blocks.push({ kind: 'thinking', thinking: c.thinking });
+          else g.blocks.push({ kind: 'thinking', thinking: c.thinking, startedAt: msg.createdAt });
         }
       } else if (c.type === 'toolUse') {
         // Single `Agent` subagent spawns and all other tools render as a normal
@@ -889,7 +895,7 @@ export function messagesToTurns(
 
     // Tool-role messages (toolResult) fold into the pending group's tool list
     if (msg.role === 'tool') {
-      if (pendingGroup) absorbContent(pendingGroup, msg.content);
+      if (pendingGroup) absorbContent(pendingGroup, msg);
       continue;
     }
 
@@ -917,6 +923,7 @@ export function messagesToTurns(
         approvalId: undefined,
         foldedSigs: [],
         durationMs: msg.durationMs,
+        createdAt: msg.createdAt,
       };
     } else if (pendingGroup !== null && pendingGroup.promptId === undefined && pid !== undefined) {
       pendingGroup.promptId = pid;
@@ -924,6 +931,12 @@ export function messagesToTurns(
 
     const group = pendingGroup;
     if (group === null) continue;
+
+    // Backfill the group's start time from a continuing message when the first
+    // one lacked a createdAt (the fold's live elapsed label depends on it).
+    if (group.createdAt === undefined && msg.createdAt !== undefined) {
+      group.createdAt = msg.createdAt;
+    }
 
     // Drop an assistant message whose content was already folded into this group
     // (a duplicate streamed-vs-persisted copy sharing the promptId), so the turn
@@ -937,7 +950,7 @@ export function messagesToTurns(
     }
     group.foldedSigs.push(sig);
 
-    absorbContent(group, msg.content);
+    absorbContent(group, msg);
   }
 
   flushGroup(true);

@@ -2124,7 +2124,7 @@ const questions = computed<UIQuestion[]>(() => {
  * tool_use). This is how the TUI / old web surface approvals.
  */
 const pendingApprovals = computed<
-  { approvalId: string; block: ApprovalBlock; agentName?: string }[]
+  { approvalId: string; block: ApprovalBlock; agentName?: string; toolCallId?: string }[]
 >(() => {
   const sid = rawState.activeSessionId;
   if (!sid) return [];
@@ -2132,6 +2132,7 @@ const pendingApprovals = computed<
     approvalId: a.approvalId,
     block: buildApprovalBlock(a),
     agentName: (a as { agentName?: string }).agentName,
+    toolCallId: a.toolCallId,
   }));
 });
 

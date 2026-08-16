@@ -276,13 +276,13 @@ export function toolSummary(name: string, arg: string, full = false): string {
       case 'search': {
         const pattern = str(d.pattern) ?? str(d.query) ?? str(d.regex);
         const path = str(d.path) ?? str(d.glob) ?? str(d.include);
-        if (pattern && path) return c(`${pattern}  in ${path}`);
+        if (pattern && path) return c(t('tools.summary.inScope', { value: pattern, scope: path }));
         return pattern ? c(pattern) : fallback();
       }
       case 'glob': {
         const pattern = str(d.pattern) ?? str(d.glob) ?? str(d.query);
         const path = str(d.path) ?? str(d.cwd);
-        if (pattern && path) return c(`${pattern}  in ${path}`);
+        if (pattern && path) return c(t('tools.summary.inScope', { value: pattern, scope: path }));
         return pattern ? c(pattern) : (str(d.path) ? c(str(d.path)!) : fallback());
       }
       case 'ls': {

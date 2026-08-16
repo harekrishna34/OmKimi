@@ -225,7 +225,17 @@ export interface CronTurnData {
  * dedicated block. */
 export type TurnBlock =
   | { kind: 'text'; text: string }
-  | { kind: 'thinking'; thinking: string }
+  | {
+      kind: 'thinking';
+      thinking: string;
+      /** ISO timestamp when this thinking segment began (best effort — the
+          daemon does not report per-part timestamps, so this falls back to the
+          containing message's createdAt). Drives the live elapsed tick and the
+          turn-fold's start seed. */
+      startedAt?: string;
+      /** Settled duration for this segment (ms), when known. */
+      durationMs?: number;
+    }
   | { kind: 'tool'; tool: ToolCall };
 
 /** One attachment on a user turn: an uploaded file, image or video. Images
@@ -262,6 +272,8 @@ export interface ChatTurn {
   compaction?: { trigger?: 'manual' | 'auto'; tokensBefore?: number; tokensAfter?: number };
   /** ISO timestamp when the message was created (used for the user bubble timestamp). */
   createdAt?: string;
+  /** ISO timestamp when the turn ended (when the daemon reports one). */
+  endedAt?: string;
   /** Client-side measured duration from turn.started to turn.ended (ms). */
   durationMs?: number;
   /** Skill activation metadata: when a user turn was triggered by a slash

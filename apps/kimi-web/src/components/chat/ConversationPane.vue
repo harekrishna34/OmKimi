@@ -22,7 +22,7 @@ const { t } = useI18n();
 const props = defineProps<{
   turns: ChatTurn[];
   sessionId?: string;
-  approvals?: { approvalId: string; block: ApprovalBlock; agentName?: string }[];
+  approvals?: { approvalId: string; block: ApprovalBlock; agentName?: string; toolCallId?: string }[];
   gitInfo?: { branch: string; ahead: number; behind: number } | null;
   tasks: TaskItem[];
   /** Model-maintained todo list (TodoList tool) — shown as a floating card. */

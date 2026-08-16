@@ -39,4 +39,8 @@ export default {
     expand: 'Show more',
     collapse: 'Show less',
   },
+  fold: {
+    worked: 'Worked {duration}',
+    workedUnknown: 'Work details',
+  },
 } as const;

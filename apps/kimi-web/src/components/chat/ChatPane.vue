@@ -15,17 +15,21 @@ import AttachmentChip from './AttachmentChip.vue';
 import MoonSpinner from '../ui/MoonSpinner.vue';
 import Spinner from '../ui/Spinner.vue';
 import Icon from '../ui/Icon.vue';
-import Tooltip from '../ui/Tooltip.vue';
 import { useConfirmDialog } from '../../composables/useConfirmDialog';
 import { copyTextToClipboard } from '../../lib/clipboard';
 import { openFileAttachment } from '../../lib/openFileAttachment';
 import {
-  assistantRenderBlocks,
-  formatDuration,
+  formatElapsed,
   formatTokens,
+  isStreamingBlock,
+  isStreamingGroup,
   renderBlockKey,
+  settledTurnDurationMs,
+  splitTurnBlocks,
+  streamingTailIndex,
   turnBlocks,
   turnFinalText,
+  turnStartMs,
   turnToMarkdown,
 } from '../chatTurnRendering';
 import type { AssistantRenderBlock } from '../chatTurnRendering';
@@ -55,7 +59,7 @@ onUnmounted(() => {
 const props = withDefaults(
   defineProps<{
     turns: ChatTurn[];
-    approvals?: { approvalId: string; block: ApprovalBlock; agentName?: string }[];
+    approvals?: { approvalId: string; block: ApprovalBlock; agentName?: string; toolCallId?: string }[];
     /**
      * True while the MAIN agent has a turn in flight (not merely "session
      * busy" — background subagents and BTW side chats don't set this). Marks
@@ -507,66 +511,94 @@ function onAttachmentClick(att: TurnAttachment): void {
   });
 }
 
-function isStreamingRenderBlock(turn: ChatTurn, block: { sourceIndex: number }): boolean {
-  if (turn.id !== streamingTurnId.value) return false;
-  return block.sourceIndex === turnBlocks(turn).length - 1;
+// ---------------------------------------------------------------------------
+// Turn-fold ("Worked Xs") — mirrors the original Railway UI
+// ---------------------------------------------------------------------------
+// Each assistant turn splits into a collapsible folded part (thinking + tools)
+// and an always-visible tail (the final text). While the turn streams, the
+// fold has NO header — it stays open showing live work; once it settles, a
+// single "Worked Xs" header appears (collapsed by default) and the groups
+// inside are one-line summaries. "Parked" (streaming turn waiting on an
+// approval) keeps the header with a live ticking duration.
+
+/** Index of the last turn block while this turn is streaming (null otherwise
+ *  — including "parked" while a running tool awaits approval). */
+function turnTailIndex(turn: ChatTurn): number | null {
+  if (turn.id !== streamingTurnId.value) return null;
+  return streamingTailIndex(turn, true, (toolCallId) =>
+    props.approvals.some((a) => a.toolCallId === toolCallId),
+  );
 }
 
-// Split an assistant turn into "work" blocks (thinking + tools) and the final
-// text response. The final text is the last text block; everything before it is
-// wrapped in the collapsible "Worked Xs" header.
-function splitAssistantBlocks(turn: ChatTurn): { work: AssistantRenderBlock[]; final: AssistantRenderBlock[] } {
-  const blocks = assistantRenderBlocks(turn);
-  const lastTextIndex = blocks.findLastIndex((b) => b.kind === 'text' && b.text);
-  if (lastTextIndex === -1) return { work: blocks, final: [] };
-  return {
-    work: blocks.slice(0, lastTextIndex),
-    final: blocks.slice(lastTextIndex),
-  };
+/** Whether the turn is live AND actively streaming its tail (not parked). */
+function isFoldStreaming(turn: ChatTurn): boolean {
+  return turnTailIndex(turn) !== null;
 }
 
-const turnSplits = computed(() => {
-  const map = new Map<string, { work: AssistantRenderBlock[]; final: AssistantRenderBlock[] }>();
-  for (const turn of props.turns) {
-    map.set(turn.id, splitAssistantBlocks(turn));
-  }
-  return map;
-});
-
-const workOpen = ref<Record<string, boolean>>({});
-const workManual = ref<Record<string, boolean>>({});
-
-function isWorkOpen(turn: ChatTurn): boolean {
-  if (turn.id === streamingTurnId.value) return true;
-  return workOpen.value[turn.id] ?? false;
+function isTurnLive(turn: ChatTurn): boolean {
+  return turn.id === streamingTurnId.value;
 }
 
-function toggleWork(turn: ChatTurn): void {
-  if (turn.id === streamingTurnId.value) return;
-  workManual.value[turn.id] = true;
-  workOpen.value[turn.id] = !isWorkOpen(turn);
-}
-
-// Auto-collapse the work section once a streaming turn finishes, unless the
-// user manually toggled it while it was running.
+// Live 1s tick for the fold duration label while a turn is streaming.
+const foldNow = ref(Date.now());
+const foldOpen = ref<Record<string, boolean>>({});
 watch(
   () => streamingTurnId.value,
   (newId, oldId) => {
-    if (oldId && !newId && !workManual.value[oldId]) {
-      workOpen.value[oldId] = false;
+    if (newId !== null) {
+      foldNow.value = Date.now();
+      const timer = setInterval(() => {
+        foldNow.value = Date.now();
+      }, 1000);
+      // Release the manual-open state of the turn that just finished (the
+      // original UI resets it when a live turn settles).
+      if (oldId !== null && oldId !== newId) foldOpen.value[oldId] = false;
+      return () => clearInterval(timer);
     }
+    foldOpen.value[oldId ?? ''] = false;
   },
 );
 
-function workHeaderLabel(turn: ChatTurn): string {
-  if (turn.id === streamingTurnId.value) return 'Working…';
-  if (turn.durationMs !== undefined) return `Worked ${formatDuration(turn.durationMs)}`;
-  return 'Worked';
+function isFoldOpen(turn: ChatTurn): boolean {
+  if (isFoldStreaming(turn)) return true;
+  return foldOpen.value[turn.id] ?? false;
 }
 
-// NOTE: the turn-summary line ("已调用 N 个工具…") was removed in f9417af. If it
-// comes back, rebuild it from turnBlocks() with i18n strings — the old
-// implementation lives in git history at f9417af^.
+function toggleFold(turn: ChatTurn): void {
+  foldOpen.value[turn.id] = !isFoldOpen(turn);
+}
+
+function foldDurationMs(turn: ChatTurn): number | undefined {
+  if (isTurnLive(turn)) {
+    const start = turnStartMs(turn);
+    return start !== undefined ? Math.max(0, foldNow.value - start) : undefined;
+  }
+  return settledTurnDurationMs(turn);
+}
+
+function foldLabel(turn: ChatTurn): string {
+  const ms = foldDurationMs(turn);
+  const duration = ms !== undefined ? formatElapsed(ms) : '';
+  return duration
+    ? t('conversation.fold.worked', { duration })
+    : t('conversation.fold.workedUnknown');
+}
+
+// Whether a visible-tail block is the live streaming tail of its turn (the
+// final text animates while it streams).
+function visibleStreaming(turn: ChatTurn, block: { kind: string; sourceIndex: number; durationMs?: number }): boolean {
+  if (turn.id !== streamingTurnId.value) return false;
+  if (block.kind === 'thinking' && block.durationMs !== undefined) return false;
+  return block.sourceIndex === turnBlocks(turn).length - 1;
+}
+
+const turnSplits = computed(() => {
+  const map = new Map<string, { folded: AssistantRenderBlock[]; visible: AssistantRenderBlock[] }>();
+  for (const turn of props.turns) {
+    map.set(turn.id, splitTurnBlocks(turn));
+  }
+  return map;
+});
 </script>
 
 <template>
@@ -688,24 +720,43 @@ function workHeaderLabel(turn: ChatTurn): string {
 
       <!-- Assistant turn → left-aligned, no name/role label.
            Work blocks (thinking + tools + intermediate text) live inside a
-           collapsible .turn-fold "Worked Xs" header; the final text block renders
-           outside so it stays visible. -->
+           collapsible .turn-fold; while streaming the fold has no header (it
+           stays open), and once settled a single "Worked Xs" header appears,
+           collapsed by default. The visible tail (final text) renders outside. -->
       <div v-else class="a-msg turn-anchor" :data-turn-id="turn.id">
         <template v-for="split in [turnSplits.get(turn.id)!]" :key="turn.id">
-          <div v-if="split.work.length > 0" class="turn-fold" :class="{ open: isWorkOpen(turn), streaming: turn.id === streamingTurnId }">
-            <button class="tf-head" type="button" :aria-expanded="isWorkOpen(turn)" @click="toggleWork(turn)">
-              <span class="tf-sum">{{ workHeaderLabel(turn) }}</span>
-              <Icon class="tf-car" name="chevron-right" size="sm" />
+          <div
+            v-if="split.folded.length > 0"
+            class="turn-fold"
+            :class="{ open: isFoldOpen(turn), streaming: isFoldStreaming(turn) }"
+          >
+            <button
+              v-if="!isFoldStreaming(turn)"
+              class="tf-head"
+              type="button"
+              :aria-expanded="isFoldOpen(turn)"
+              @click="toggleFold(turn)"
+            >
+              <span class="tf-sum" :title="foldLabel(turn)">{{ foldLabel(turn) }}</span>
+              <Icon class="tf-car" name="chevron-right" size="sm" aria-hidden="true" />
             </button>
-            <div class="tf-body" :class="{ open: isWorkOpen(turn) }" :inert="!isWorkOpen(turn)">
+            <div class="tf-body" :class="{ open: isFoldOpen(turn) }" :inert="!isFoldOpen(turn)">
               <div class="tf-body-inner">
-                <template v-for="(blk, bi) in split.work" :key="renderBlockKey(blk, bi)">
-                  <ThinkingBlock v-if="blk.kind === 'thinking'" :text="blk.thinking" mobile :streaming="isStreamingRenderBlock(turn, blk)" />
-                  <div v-else-if="blk.kind === 'text' && blk.text" class="msg"><Markdown :text="blk.text" :streaming="isStreamingRenderBlock(turn, blk)" :open-file="(target) => emit('openFile', target)" /></div>
-                  <ToolGroup
-                    v-else-if="blk.kind === 'tool-stack'"
-                    :tools="blk.tools"
+                <template v-for="(blk, bi) in split.folded" :key="renderBlockKey(blk, bi)">
+                  <ThinkingBlock
+                    v-if="blk.kind === 'thinking'"
+                    :text="blk.thinking"
                     mobile
+                    :streaming="isStreamingBlock(blk, turnTailIndex(turn))"
+                    :started-at="blk.startedAt"
+                    :duration-ms="blk.durationMs"
+                  />
+                  <div v-else-if="blk.kind === 'text' && blk.text" class="msg"><Markdown :text="blk.text" :streaming="isStreamingBlock(blk, turnTailIndex(turn))" :open-file="(target) => emit('openFile', target)" /></div>
+                  <ToolGroup
+                    v-else-if="blk.kind === 'activity-run'"
+                    :items="blk.items"
+                    mobile
+                    :streaming="isStreamingGroup(blk, turnTailIndex(turn))"
                     :tool-diff-panel="toolDiffPanel"
                     @open-media="emit('openMedia', $event)"
                     @open-file="emit('openFile', $event)"
@@ -718,8 +769,27 @@ function workHeaderLabel(turn: ChatTurn): string {
             </div>
           </div>
 
-          <template v-for="(blk, bi) in split.final" :key="`final-${renderBlockKey(blk, bi)}`">
-            <div v-if="blk.kind === 'text' && blk.text" class="msg"><Markdown :text="blk.text" :streaming="isStreamingRenderBlock(turn, blk)" :open-file="(target) => emit('openFile', target)" /></div>
+          <template v-for="(blk, bi) in split.visible" :key="`v-${renderBlockKey(blk, bi)}`">
+            <ThinkingBlock
+              v-if="blk.kind === 'thinking'"
+              :text="blk.thinking"
+              mobile
+              :streaming="visibleStreaming(turn, blk)"
+              :started-at="blk.startedAt"
+              :duration-ms="blk.durationMs"
+            />
+            <div v-else-if="blk.kind === 'text' && blk.text" class="msg"><Markdown :text="blk.text" :streaming="visibleStreaming(turn, blk)" :open-file="(target) => emit('openFile', target)" /></div>
+            <ToolGroup
+              v-else-if="blk.kind === 'activity-run'"
+              :items="blk.items"
+              mobile
+              :tool-diff-panel="toolDiffPanel"
+              @open-media="emit('openMedia', $event)"
+              @open-file="emit('openFile', $event)"
+              @open-tool-diff="emit('openToolDiff', $event)"
+              @open-agent="emit('openAgent', $event)"
+            />
+            <ToolCall v-else-if="blk.kind === 'tool'" :tool="blk.tool" mobile :tool-diff-panel="toolDiffPanel" @open-media="emit('openMedia', $event)" @open-file="emit('openFile', $event)" @open-tool-diff="emit('openToolDiff', $event)" @open-agent="emit('openAgent', $event)" />
           </template>
         </template>
 
@@ -1206,15 +1276,19 @@ function workHeaderLabel(turn: ChatTurn): string {
 .a-msg > :deep(.agent-group:first-child),
 .a-msg > :deep(.tool-line:first-child),
 .a-msg > :deep(.swarm-card:first-child),
-.a-msg > :deep(.media-tool:first-child),
-.a-msg :deep(.tf-body-inner > .msg:first-child),
-.a-msg :deep(.tf-body-inner > .think:first-child),
-.a-msg :deep(.tf-body-inner > .activity-run:first-child),
-.a-msg :deep(.tf-body-inner > .agent-card:first-child),
-.a-msg :deep(.tf-body-inner > .agent-group:first-child),
-.a-msg :deep(.tf-body-inner > .tool-line:first-child),
-.a-msg :deep(.tf-body-inner > .swarm-card:first-child),
-.a-msg :deep(.tf-body-inner > .media-tool:first-child) {
+.a-msg > :deep(.media-tool:first-child) {
+  margin-top: 0;
+}
+/* While a turn streams, the fold body hugs the message top (no gap on its
+   first child); settled folds keep the normal block gap (original UI). */
+.a-msg :deep(.turn-fold.streaming .tf-body-inner > .msg:first-child),
+.a-msg :deep(.turn-fold.streaming .tf-body-inner > .think:first-child),
+.a-msg :deep(.turn-fold.streaming .tf-body-inner > .activity-run:first-child),
+.a-msg :deep(.turn-fold.streaming .tf-body-inner > .agent-card:first-child),
+.a-msg :deep(.turn-fold.streaming .tf-body-inner > .agent-group:first-child),
+.a-msg :deep(.turn-fold.streaming .tf-body-inner > .tool-line:first-child),
+.a-msg :deep(.turn-fold.streaming .tf-body-inner > .swarm-card:first-child),
+.a-msg :deep(.turn-fold.streaming .tf-body-inner > .media-tool:first-child) {
   margin-top: 0;
 }
 .a-msg :deep(code) {
